@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://focustrack.sliit.lk/schemas/component3/window_record.json",
+  "title": "FocusTrack Component 3 window record",
+  "description": "Per-window visual contract consumed by the Signal Semantics Resolver and Components 1/2/4. Validity ratios distinguish 'no distraction' from 'couldn't tell'.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "session_id",
+    "window_start",
+    "window_end",
+    "visual_focus_score",
+    "face_present_ratio",
+    "gaze_valid_ratio",
+    "off_screen_gaze_ratio",
+    "phone_detected",
+    "phone_detection_confidence",
+    "expression_valid_ratio",
+    "dominant_expression",
+    "confidence"
+  ],
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "window_start": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "window_end": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "visual_focus_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "face_present_ratio": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "gaze_valid_ratio": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "off_screen_gaze_ratio": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "phone_detected": {
+      "type": "boolean"
+    },
+    "phone_detection_confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "expression_valid_ratio": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "dominant_expression": {
+      "type": "string",
+      "enum": [
+        "neutral",
+        "focused",
+        "confused",
+        "bored",
+        "unavailable"
+      ]
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "contract_version": {
+      "type": "string"
+    },
+    "participant_id": {
+      "type": "string"
+    },
+    "cohort": {
+      "type": "string",
+      "enum": [
+        "screen",
+        "non_screen"
+      ]
+    }
+  }
+}

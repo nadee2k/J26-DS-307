@@ -1,0 +1,8 @@
+# Example Ultralytics dataset yaml for phone fine-tuning.
+# Populate train/val image folders with a labelled pilot set that INCLUDES
+# hand-near-face and phone-in-hand examples, not just clear unobstructed shots.
+path: data/phone_dataset
+train: images/train
+val: images/val
+names:
+  0: cell_phone

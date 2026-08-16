@@ -1,0 +1,21 @@
+# Component 3 dependencies — Python 3.10+ (developed on 3.12), CPU-feasible by design.
+# Compatible-release pins; torch is pulled in transitively by ultralytics.
+numpy>=1.26.0,<3.0.0
+pandas>=2.1.0,<3.0.0
+pyarrow>=14.0.0
+PyYAML>=6.0.1
+opencv-python>=4.8.0
+# mediapipe 1.x crashes in the face-detection subgraph on macOS (Metal helper);
+# 0.10.x Tasks API verified working on this project.
+mediapipe>=0.10.14,<1.0
+ultralytics>=8.2.0
+scikit-learn>=1.4.0
+xgboost>=2.0.0
+imbalanced-learn>=0.12.0
+joblib>=1.3.0
+jsonschema>=4.21.0
+pytest>=8.0.0
+torch>=2.1.0
+torchvision>=0.16.0
+fastapi>=0.110.0
+uvicorn>=0.29.0

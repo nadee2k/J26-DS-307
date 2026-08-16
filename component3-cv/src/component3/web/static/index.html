@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FocusTrack · Component 3</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='9' fill='none' stroke='%234f46e5' stroke-width='2.4'/%3E%3Ccircle cx='12' cy='12' r='3.4' fill='%234f46e5'/%3E%3C/svg%3E" />
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" width="22" height="22"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="12" cy="12" r="3.4" fill="currentColor"/></svg>
+      <div>
+        <div class="brand-name">FocusTrack</div>
+        <div class="brand-sub">Component 3 · CV</div>
+      </div>
+    </div>
+    <nav id="nav">
+      <a href="#/dashboard" data-view="dashboard">Dashboard</a>
+      <a href="#/capture" data-view="capture">Capture</a>
+      <a href="#/sessions" data-view="sessions">Sessions</a>
+      <a href="#/calibration" data-view="calibration">Calibration</a>
+      <a href="#/participants" data-view="participants">Participants</a>
+      <a href="#/labels" data-view="labels">Labels</a>
+      <a href="#/train" data-view="train">Train &amp; Evaluate</a>
+      <a href="#/benchmark" data-view="benchmark">Benchmark</a>
+      <a href="#/contract" data-view="contract">Contract</a>
+    </nav>
+    <div class="sidebar-foot">
+      <span class="dot" id="live-dot"></span>
+      <span id="live-text">idle</span>
+    </div>
+  </aside>
+  <main id="view"></main>
+  <div id="toasts"></div>
+  <div id="cal-overlay" class="cal-overlay hidden">
+    <div id="cal-dot" class="cal-dot hidden"></div>
+    <div id="cal-msg" class="cal-msg"></div>
+    <div class="cal-progress"><div id="cal-bar"></div></div>
+    <button id="cal-abort" class="btn ghost">Cancel</button>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

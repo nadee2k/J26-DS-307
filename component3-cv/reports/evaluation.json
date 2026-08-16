@@ -1,0 +1,76 @@
+{
+  "n_windows": 1920,
+  "n_participants": 20,
+  "end_to_end": {
+    "daisee_framing": "Closest public benchmark (DAiSEE, 4-class engagement) sits mostly in the 55\u201370% accuracy band; binary focus-vs-distraction should be somewhat easier. Do not present a single-split 90%+ figure.",
+    "models": [
+      {
+        "model": "random_forest",
+        "n_folds": 5,
+        "accuracy": "0.970 \u00b1 0.012",
+        "precision": "0.982 \u00b1 0.012",
+        "recall": "0.963 \u00b1 0.013",
+        "f1": "0.973 \u00b1 0.010",
+        "majority_baseline_accuracy": "0.550 \u00b1 0.061",
+        "majority_baseline_f1": "0.308 \u00b1 0.377",
+        "raw": {
+          "model": "random_forest",
+          "n_folds": 5,
+          "accuracy_mean": 0.9697916666666666,
+          "accuracy_std": 0.011945150980395522,
+          "precision_mean": 0.9822453005115472,
+          "precision_std": 0.012021801034455468,
+          "recall_mean": 0.963125,
+          "recall_std": 0.013169567191065908,
+          "f1_mean": 0.9725371544112813,
+          "f1_std": 0.010326362435362517,
+          "roc_auc_mean": 0.9882443576388888,
+          "roc_auc_std": 0.006061816721502896,
+          "majority_baseline_accuracy_mean": 0.55,
+          "majority_baseline_accuracy_std": 0.06123724356957945,
+          "majority_baseline_f1_mean": 0.3076923076923077,
+          "majority_baseline_f1_std": 0.3768445758127966
+        }
+      },
+      {
+        "model": "xgboost",
+        "n_folds": 5,
+        "accuracy": "0.970 \u00b1 0.014",
+        "precision": "0.986 \u00b1 0.014",
+        "recall": "0.960 \u00b1 0.016",
+        "f1": "0.973 \u00b1 0.012",
+        "majority_baseline_accuracy": "0.550 \u00b1 0.061",
+        "majority_baseline_f1": "0.308 \u00b1 0.377",
+        "raw": {
+          "model": "xgboost",
+          "n_folds": 5,
+          "accuracy_mean": 0.9697916666666666,
+          "accuracy_std": 0.01354166666666667,
+          "precision_mean": 0.9860043891293891,
+          "precision_std": 0.013684601382310419,
+          "recall_mean": 0.9595833333333333,
+          "recall_std": 0.016343215547879344,
+          "f1_mean": 0.9725264575861905,
+          "f1_std": 0.011939419439130752,
+          "roc_auc_mean": 0.9908134403935185,
+          "roc_auc_std": 0.004623209478903015,
+          "majority_baseline_accuracy_mean": 0.55,
+          "majority_baseline_accuracy_std": 0.06123724356957945,
+          "majority_baseline_f1_mean": 0.3076923076923077,
+          "majority_baseline_f1_std": 0.3768445758127966
+        }
+      }
+    ]
+  },
+  "gaze": {
+    "available": false
+  },
+  "phone": {
+    "available": false,
+    "note": "Run `python -m component3 finetune-phone` then ultralytics val to populate Precision/Recall/mAP for the phone detector on a labelled pilot set."
+  },
+  "expression": {
+    "enabled": false,
+    "caveat": "Expression is the lowest-confidence optional signal. FER2013-trained accuracy must not be presented as comparable to gaze/phone/pose."
+  }
+}

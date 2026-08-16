@@ -1,0 +1,306 @@
+{
+  "n_windows": 1920,
+  "n_participants": 20,
+  "class_balance": {
+    "focused": 1056,
+    "distracted": 864
+  },
+  "models": [
+    {
+      "model": "random_forest",
+      "n_folds": 5,
+      "folds": [
+        {
+          "accuracy": 0.9791666666666666,
+          "precision": 0.9791666666666666,
+          "recall": 0.9791666666666666,
+          "f1": 0.9791666666666666,
+          "n": 384,
+          "positive_rate": 0.5,
+          "confusion_matrix": [
+            [
+              188,
+              4
+            ],
+            [
+              4,
+              188
+            ]
+          ],
+          "roc_auc": 0.9947916666666666,
+          "majority_baseline_accuracy": 0.5,
+          "majority_baseline_f1": 0.0,
+          "majority_class": 0,
+          "fold": 0,
+          "n_train_participants": 16,
+          "n_test_participants": 4
+        },
+        {
+          "accuracy": 0.96875,
+          "precision": 0.9956521739130435,
+          "recall": 0.9541666666666667,
+          "f1": 0.9744680851063829,
+          "n": 384,
+          "positive_rate": 0.625,
+          "confusion_matrix": [
+            [
+              143,
+              1
+            ],
+            [
+              11,
+              229
+            ]
+          ],
+          "roc_auc": 0.9806712962962962,
+          "majority_baseline_accuracy": 0.625,
+          "majority_baseline_f1": 0.7692307692307693,
+          "majority_class": 1,
+          "fold": 1,
+          "n_train_participants": 16,
+          "n_test_participants": 4
+        },
+        {
+          "accuracy": 0.9869791666666666,
+          "precision": 0.9947089947089947,
+          "recall": 0.9791666666666666,
+          "f1": 0.9868766404199475,
+          "n": 384,
+          "positive_rate": 0.5,
+          "confusion_matrix": [
+            [
+              191,
+              1
+            ],
+            [
+              4,
+              188
+            ]
+          ],
+          "roc_auc": 0.9960259331597223,
+          "majority_baseline_accuracy": 0.5,
+          "majority_baseline_f1": 0.0,
+          "majority_class": 0,
+          "fold": 2,
+          "n_train_participants": 16,
+          "n_test_participants": 4
+        },
+        {
+          "accuracy": 0.9583333333333334,
+          "precision": 0.9631578947368421,
+          "recall": 0.953125,
+          "f1": 0.9581151832460733,
+          "n": 384,
+          "positive_rate": 0.5,
+          "confusion_matrix": [
+            [
+              185,
+              7
+            ],
+            [
+              9,
+              183
+            ]
+          ],
+          "roc_auc": 0.9846055772569444,
+          "majority_baseline_accuracy": 0.5,
+          "majority_baseline_f1": 0.0,
+          "majority_class": 0,
+          "fold": 3,
+          "n_train_participants": 16,
+          "n_test_participants": 4
+        },
+        {
+          "accuracy": 0.9557291666666666,
+          "precision": 0.9785407725321889,
+          "recall": 0.95,
+          "f1": 0.9640591966173362,
+          "n": 384,
+          "positive_rate": 0.625,
+          "confusion_matrix": [
+            [
+              139,
+              5
+            ],
+            [
+              12,
+              228
+            ]
+          ],
+          "roc_auc": 0.9851273148148149,
+          "majority_baseline_accuracy": 0.625,
+          "majority_baseline_f1": 0.7692307692307693,
+          "majority_class": 1,
+          "fold": 4,
+          "n_train_participants": 16,
+          "n_test_participants": 4
+        }
+      ],
+      "accuracy_mean": 0.9697916666666666,
+      "accuracy_std": 0.011945150980395522,
+      "precision_mean": 0.9822453005115472,
+      "precision_std": 0.012021801034455468,
+      "recall_mean": 0.963125,
+      "recall_std": 0.013169567191065908,
+      "f1_mean": 0.9725371544112813,
+      "f1_std": 0.010326362435362517,
+      "roc_auc_mean": 0.9882443576388888,
+      "roc_auc_std": 0.006061816721502896,
+      "majority_baseline_accuracy_mean": 0.55,
+      "majority_baseline_accuracy_std": 0.06123724356957945,
+      "majority_baseline_f1_mean": 0.3076923076923077,
+      "majority_baseline_f1_std": 0.3768445758127966
+    },
+    {
+      "model": "xgboost",
+      "n_folds": 5,
+      "folds": [
+        {
+          "accuracy": 0.984375,
+          "precision": 0.984375,
+          "recall": 0.984375,
+          "f1": 0.984375,
+          "n": 384,
+          "positive_rate": 0.5,
+          "confusion_matrix": [
+            [
+              189,
+              3
+            ],
+            [
+              3,
+              189
+            ]
+          ],
+          "roc_auc": 0.9967447916666666,
+          "majority_baseline_accuracy": 0.5,
+          "majority_baseline_f1": 0.0,
+          "majority_class": 0,
+          "fold": 0,
+          "n_train_participants": 16,
+          "n_test_participants": 4
+        },
+        {
+          "accuracy": 0.9661458333333334,
+          "precision": 1.0,
+          "recall": 0.9458333333333333,
+          "f1": 0.9721627408993576,
+          "n": 384,
+          "positive_rate": 0.625,
+          "confusion_matrix": [
+            [
+              144,
+              0
+            ],
+            [
+              13,
+              227
+            ]
+          ],
+          "roc_auc": 0.9872685185185185,
+          "majority_baseline_accuracy": 0.625,
+          "majority_baseline_f1": 0.7692307692307693,
+          "majority_class": 1,
+          "fold": 1,
+          "n_train_participants": 16,
+          "n_test_participants": 4
+        },
+        {
+          "accuracy": 0.9869791666666666,
+          "precision": 1.0,
+          "recall": 0.9739583333333334,
+          "f1": 0.9868073878627969,
+          "n": 384,
+          "positive_rate": 0.5,
+          "confusion_matrix": [
+            [
+              192,
+              0
+            ],
+            [
+              5,
+              187
+            ]
+          ],
+          "roc_auc": 0.9960123697916667,
+          "majority_baseline_accuracy": 0.5,
+          "majority_baseline_f1": 0.0,
+          "majority_class": 0,
+          "fold": 2,
+          "n_train_participants": 16,
+          "n_test_participants": 4
+        },
+        {
+          "accuracy": 0.9557291666666666,
+          "precision": 0.9629629629629629,
+          "recall": 0.9479166666666666,
+          "f1": 0.9553805774278216,
+          "n": 384,
+          "positive_rate": 0.5,
+          "confusion_matrix": [
+            [
+              185,
+              7
+            ],
+            [
+              10,
+              182
+            ]
+          ],
+          "roc_auc": 0.9857313368055556,
+          "majority_baseline_accuracy": 0.5,
+          "majority_baseline_f1": 0.0,
+          "majority_class": 0,
+          "fold": 3,
+          "n_train_participants": 16,
+          "n_test_participants": 4
+        },
+        {
+          "accuracy": 0.9557291666666666,
+          "precision": 0.9826839826839827,
+          "recall": 0.9458333333333333,
+          "f1": 0.9639065817409767,
+          "n": 384,
+          "positive_rate": 0.625,
+          "confusion_matrix": [
+            [
+              140,
+              4
+            ],
+            [
+              13,
+              227
+            ]
+          ],
+          "roc_auc": 0.9883101851851851,
+          "majority_baseline_accuracy": 0.625,
+          "majority_baseline_f1": 0.7692307692307693,
+          "majority_class": 1,
+          "fold": 4,
+          "n_train_participants": 16,
+          "n_test_participants": 4
+        }
+      ],
+      "accuracy_mean": 0.9697916666666666,
+      "accuracy_std": 0.01354166666666667,
+      "precision_mean": 0.9860043891293891,
+      "precision_std": 0.013684601382310419,
+      "recall_mean": 0.9595833333333333,
+      "recall_std": 0.016343215547879344,
+      "f1_mean": 0.9725264575861905,
+      "f1_std": 0.011939419439130752,
+      "roc_auc_mean": 0.9908134403935185,
+      "roc_auc_std": 0.004623209478903015,
+      "majority_baseline_accuracy_mean": 0.55,
+      "majority_baseline_accuracy_std": 0.06123724356957945,
+      "majority_baseline_f1_mean": 0.3076923076923077,
+      "majority_baseline_f1_std": 0.3768445758127966
+    }
+  ],
+  "artifacts": {
+    "random_forest": "/Users/yasiruvithana/untitled folder 40/component3-cv/artifacts/random_forest.joblib",
+    "xgboost": "/Users/yasiruvithana/untitled folder 40/component3-cv/artifacts/xgboost.joblib",
+    "visual_classifier": "/Users/yasiruvithana/untitled folder 40/component3-cv/artifacts/visual_classifier.joblib"
+  },
+  "note": "Headline numbers are mean \u00b1 std across Leave-N-Participants-Out folds. Compare against majority_baseline_*; DAiSEE-range framing applies."
+}

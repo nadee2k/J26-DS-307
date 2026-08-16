@@ -1,0 +1,14 @@
+{
+  "n_frames": 20,
+  "source": "synthetic",
+  "stub_phone": false,
+  "mean_frame_ms": 467.78030439927534,
+  "p95_frame_ms": 707.8211256503007,
+  "max_sustainable_fps": 2.1377556741817134,
+  "target_fps": 3.0,
+  "meets_target": false,
+  "total_elapsed_s": 9.581827415997395,
+  "windowing_ms": 1.0303329981979914,
+  "face_present_rate": 0.0,
+  "recommendation": "Drop target_fps toward 2 or stub/skip expression+YOLO on CPU."
+}

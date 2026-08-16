@@ -1,0 +1,33 @@
+# Raw participant data must never be committed (v2 §3 storage discipline)
+data/raw/*
+!data/raw/.gitkeep
+data/processed/frames/*
+!data/processed/frames/.gitkeep
+data/processed/features/*
+!data/processed/features/.gitkeep
+data/calibration/*
+!data/calibration/.gitkeep
+data/consent/*
+!data/consent/.gitkeep
+data/labels/*
+!data/labels/.gitkeep
+
+# Model weights and experiment artifacts
+artifacts/*
+!artifacts/.gitkeep
+*.pt
+*.joblib
+*.onnx
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+.pytest_cache/
+
+# Notebooks checkpoints
+.ipynb_checkpoints/
+
+# OS
+.DS_Store

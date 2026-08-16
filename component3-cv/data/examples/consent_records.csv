@@ -1,0 +1,4 @@
+participant_id,consented,consent_date,notes
+P001,true,2026-03-01,signed paper form
+P002,true,2026-03-01,signed paper form
+TEAM01,true,2026-02-15,team self-recording / ethics-pending pilot

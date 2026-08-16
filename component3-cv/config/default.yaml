@@ -1,0 +1,88 @@
+# Component 3 (CV & Visual Behavior) — single source of truth for pipeline parameters.
+# Values here implement the v2 build plan decisions (fps band, window size, privacy defaults).
+
+capture:
+  device_index: 0          # external USB webcam; laptop cam only for development
+  width: 1280
+  height: 720
+  target_fps: 3            # within the 2-5 fps band; validate with benchmark.py before study
+  retain_frames: false     # privacy default: frames are processed in-stream and discarded
+
+paths:
+  data_dir: data
+  raw_dir: data/raw
+  calibration_dir: data/calibration
+  labels_file: data/labels/session_labels.csv
+  consent_file: data/consent/consent_records.csv
+  frames_dir: data/processed/frames
+  features_dir: data/processed/features
+  artifacts_dir: artifacts
+  reports_dir: reports
+  schema_dir: schema
+
+preprocess:
+  face_detection_confidence: 0.5
+  crop_margin: 0.25            # bbox margin as fraction of bbox size
+  face_size: [224, 224]        # normalized face-crop resolution
+  blur_threshold: 60.0         # Laplacian variance below this -> blurred flag
+  occlusion_score_threshold: 0.60   # detection score below this (face still found) -> occluded flag
+  glare_pixel_value: 240       # eye-region pixels above this count as specular glare
+  glare_ratio_threshold: 0.20  # fraction of glare pixels above which gaze is invalid
+
+windowing:
+  window_seconds: 5            # join key with Components 1/2 — agree before full collection
+
+gaze:
+  eye_crop_size: [60, 36]
+  heuristic_iris_offset_threshold: 0.18   # uncalibrated fallback threshold
+  heuristic_yaw_threshold_deg: 25.0
+
+calibration:
+  frames_per_point: 15
+  onscreen_grid: 3             # 3x3 = 9 on-screen points
+  offscreen_prompts:
+    - look_left_of_screen
+    - look_right_of_screen
+    - look_above_screen
+    - look_down_at_desk
+
+phone:
+  weights: yolov8n.pt          # COCO-pretrained start; replace with fine-tuned weights later
+  confidence_threshold: 0.35
+  cellphone_class_id: 67       # COCO 'cell phone'
+  imgsz: 640
+
+expression:
+  enabled: false               # lowest-confidence optional signal (v2 §5) — off by default
+  classes: [neutral, focused, confused, bored]
+  weights: null                # path to trained MobileNetV2 head; null -> expression_valid=false
+
+model:
+  focus_label_threshold: 4     # self-report rating >= threshold (1-5 scale) -> focused
+  n_folds: 5                   # Leave-N-Participants-Out folds
+  use_smote: false             # class_weight='balanced' is the default imbalance handling
+  random_state: 42
+  rf_n_estimators: 200
+  rf_max_depth: null
+  xgb_n_estimators: 200
+  xgb_max_depth: 4
+  xgb_learning_rate: 0.05
+  score_phone_weight: 40.0     # heuristic score penalties when no trained head is loaded
+  score_offscreen_weight: 30.0
+  score_away_weight: 20.0
+  cnn_image_size: 64
+  cnn_epochs: 15
+  cnn_batch_size: 32
+  cnn_lr: 0.001
+
+phone_finetune:
+  data_yaml: data/phone_dataset/data.yaml
+  epochs: 50
+  batch: 16
+  mosaic: 1.0
+  scale: 0.9                   # scale-down to emphasize small/hand-occluded phones
+  erasing: 0.4                 # random erasing ~ cutout to simulate hand occlusion
+  fliplr: 0.5
+  hsv_h: 0.015
+  hsv_s: 0.7
+  hsv_v: 0.4
