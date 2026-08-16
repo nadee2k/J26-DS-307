@@ -17,7 +17,6 @@ Privacy default: frames are processed in-stream and discarded. Raw video is neve
 ## Setup
 
 ```bash
-cd component3-cv
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -80,13 +79,27 @@ Tests use synthetic frames and records; they do not require a webcam or download
 ## Layout
 
 ```
-component3-cv/
-├── config/default.yaml
-├── schema/window_record.schema.json
-├── src/component3/          # capture → preprocess → features → windowing → models
+.
+├── config/
+│   └── default.yaml
+├── schema/
+│   └── window_record.schema.json
+├── src/
+│   └── component3/          # capture → preprocess → features → windowing → models
 ├── tests/
 ├── data/                    # raw/ is gitignored; never commit participant frames
-└── reports/
+│   ├── calibration/
+│   ├── consent/
+│   ├── examples/
+│   ├── labels/
+│   ├── processed/
+│   └── raw/
+├── reports/
+├── notebooks/
+├── artifacts/
+├── requirements.txt
+├── pyproject.toml
+└── yolov8n.pt
 ```
 
 ## Evaluation framing
