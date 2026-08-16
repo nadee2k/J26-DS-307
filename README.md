@@ -1,18 +1,71 @@
 # FocusTrack Component 3 — Computer Vision & Visual Behavior Analysis
 
-Standalone visual pipeline for **FocusTrack** (IT4010, SLIIT): webcam frames in → `visual_focus_score` (0–100) + per-indicator flags + confidence out.
+**Research Project**: J26-DS-307  
+**Course**: IT4010 - Research Project  
+**Institution**: Sri Lanka Institute of Information Technology (SLIIT)  
+**Academic Year**: 2026
 
-This component is gradeable on its own. Fusion with Components 1/2/4 is a later consumer of the JSON contract in `schema/window_record.schema.json`.
+## Overview
 
-## What it does
+FocusTrack Component 3 is a standalone computer vision pipeline that analyzes visual behavior indicators to detect student focus and distraction during learning sessions. The system processes webcam frames in real-time to produce a `visual_focus_score` (0–100) along with per-indicator flags and confidence metrics.
 
-1. Samples an external USB webcam at 2–5 fps (default 3 fps, 720p).
-2. Detects face presence, head pose, coarse on/off-screen gaze, phone use, and (optionally) expression.
-3. Aggregates frame records into 5-second windows with **validity ratios** (missing data is a feature, not a silent gap).
-4. Trains a visual-only focus/distraction classifier (Random Forest / XGBoost) with **Leave-N-Participants-Out** cross-validation.
-5. Exports the integration contract for the shared Signal Semantics Resolver.
+This component is designed to be independently gradeable and testable. Integration with Components 1/2/4 is achieved through the JSON contract defined in `schema/window_record.schema.json`.
 
-Privacy default: frames are processed in-stream and discarded. Raw video is never written unless `--retain-frames` is set for debugging.
+### Key Features
+
+- **Real-time Visual Analysis**: Processes webcam feeds at 2-5 fps (default 3 fps)
+- **Multi-Modal Detection**: Face presence, head pose, gaze tracking, phone detection, and facial expressions
+- **Privacy-First Design**: Frames processed in-stream and discarded by default (no video storage)
+- **Machine Learning Pipeline**: Random Forest and XGBoost classifiers with Leave-N-Participants-Out cross-validation
+- **Web Management Interface**: Complete FastAPI-based web app for data collection and monitoring
+- **Consent Management**: Built-in consent tracking system for ethical data collection
+
+## How It Works
+
+1. **Video Capture**: Samples an external USB webcam at 2–5 fps (default 3 fps, 720p resolution)
+2. **Feature Extraction**: Detects and analyzes:
+   - Face presence and quality (blur, occlusion, glare)
+   - Head pose (pitch, yaw, roll angles)
+   - Coarse on/off-screen gaze estimation
+   - Phone usage detection (YOLOv8n-based)
+   - Facial expressions (optional, disabled by default)
+3. **Temporal Aggregation**: Groups frame records into 5-second windows with validity ratios
+4. **ML Classification**: Trains visual focus/distraction classifiers using Random Forest and XGBoost
+5. **Evaluation**: Provides Leave-N-Participants-Out cross-validation with baseline comparisons
+6. **Schema Export**: Generates integration contracts for the Signal Semantics Resolver
+
+### Performance Metrics
+
+Based on synthetic data evaluation (1920 windows, 20 participants):
+- **Random Forest**: 97.0% ± 1.2% accuracy (baseline: 55.0% ± 6.1%)
+- **XGBoost**: 97.0% ± 1.4% accuracy
+- **F1 Score**: 0.973 ± 0.010 (both models)
+
+*Note: Real-world performance may vary. Realistic expectations align with DAiSEE benchmarks (55-70% for finer engagement labels).*
+
+## Quick Start
+
+### Web Interface (Recommended)
+
+The easiest way to use Component 3 is through the web management interface:
+
+```bash
+python -m component3 web
+```
+
+Then open http://127.0.0.1:8300 in your browser.
+
+The web interface provides:
+- Live camera preview and calibration
+- Participant consent management
+- Session capture with real-time monitoring
+- Label annotation interface
+- Model training and evaluation dashboards
+- Report visualization (accuracy, ablation studies, benchmarks)
+
+### Command Line
+
+All functionality is also available via CLI commands (see Commands section below).
 
 ## Setup
 
@@ -107,3 +160,45 @@ Tests use synthetic frames and records; they do not require a webcam or download
 End-to-end accuracy is reported as **mean ± std across LNPO folds**, always beside a **majority-class baseline**. Realistic expectations for this task sit near the DAiSEE band (~55–70% for finer engagement labels); binary focus-vs-distraction should be somewhat easier, but a 90%+ claim is not the design target.
 
 Gaze is **coarse on/off-screen**, not precise gaze-point tracking. Facial expression is the **lowest-confidence, optional** signal and is disabled by default.
+
+## Technology Stack
+
+- **Computer Vision**: OpenCV, MediaPipe, Ultralytics YOLOv8
+- **Machine Learning**: scikit-learn, XGBoost, PyTorch
+- **Web Framework**: FastAPI, Uvicorn
+- **Data Processing**: pandas, NumPy, PyArrow (Parquet)
+- **Testing**: pytest
+- **Python**: 3.10+ (developed on 3.12)
+
+## Project Structure
+
+This repository contains:
+- `src/component3/`: Core pipeline modules
+  - `capture.py`: Webcam capture and session management
+  - `preprocess.py`: Frame preprocessing and quality checks
+  - `features/`: Feature extraction modules (gaze, pose, phone, expression)
+  - `models/`: ML training and inference
+  - `web/`: FastAPI application and web interface
+- `config/`: Configuration files (pipeline parameters)
+- `schema/`: JSON schema for integration contracts
+- `data/`: Data directories (raw, processed, labels, consent)
+- `reports/`: Generated evaluation reports and metrics
+- `tests/`: Unit and integration tests
+- `notebooks/`: Exploratory data analysis
+
+## Repository
+
+**GitHub**: [https://github.com/nadee2k/J26-DS-307](https://github.com/nadee2k/J26-DS-307)  
+**Branch**: `component-3`
+
+## License
+
+This is an academic research project developed for IT4010 at SLIIT. All rights reserved to the project team and institution.
+
+## Privacy & Ethics
+
+- **Consent-gated**: System refuses to start capture without explicit participant consent
+- **Privacy-first**: Frames processed in-stream, no video storage by default
+- **Anonymized data**: Participant IDs used instead of personal information
+- **Transparent**: All detection methods and confidence scores are reported
+- **Optional retention**: `--retain-frames` flag only for debugging purposes
