@@ -62,6 +62,14 @@ function mapEnvironment(row: Record<string, unknown>): EnvironmentLog {
     light: (row.light as number | null) ?? null,
     noise: (row.noise as number | null) ?? null,
     motion: (row.motion as boolean | null) ?? null,
+    accX: (row.acc_x as number | null) ?? null,
+    accY: (row.acc_y as number | null) ?? null,
+    accZ: (row.acc_z as number | null) ?? null,
+    gyroX: (row.gyro_x as number | null) ?? null,
+    gyroY: (row.gyro_y as number | null) ?? null,
+    gyroZ: (row.gyro_z as number | null) ?? null,
+    distance: (row.distance as number | null) ?? null,
+    radarState: (row.radar_state as string | null) ?? null,
     createdAt: String(row.created_at),
   }
 }
@@ -353,20 +361,32 @@ export const environmentLogs = {
     listLogs("environment_logs", mapEnvironment, page, pageSize, sessionId),
   getLatest: (sessionId?: string) => getLatestLog("environment_logs", mapEnvironment, sessionId),
   create: async (data: Omit<EnvironmentLog, "id" | "createdAt">) => {
-    const { data: row, error } = await getSupabase()
-      .from("environment_logs")
-      .insert({
-        session_id: data.sessionId,
-        temperature: data.temperature ?? null,
-        humidity: data.humidity ?? null,
-        light: data.light ?? null,
-        noise: data.noise ?? null,
-        motion: data.motion ?? null,
-      })
-      .select()
-      .single()
-    throwIfError(error)
-    return mapEnvironment(row as Record<string, unknown>)
+    const base = {
+      session_id: data.sessionId,
+      temperature: data.temperature ?? null,
+      humidity: data.humidity ?? null,
+      light: data.light ?? null,
+      noise: data.noise ?? null,
+      motion: data.motion ?? null,
+    }
+    const withImu = {
+      ...base,
+      acc_x: data.accX ?? null,
+      acc_y: data.accY ?? null,
+      acc_z: data.accZ ?? null,
+      gyro_x: data.gyroX ?? null,
+      gyro_y: data.gyroY ?? null,
+      gyro_z: data.gyroZ ?? null,
+      distance: data.distance ?? null,
+      radar_state: data.radarState ?? null,
+    }
+    const first = await getSupabase().from("environment_logs").insert(withImu).select().single()
+    if (!first.error) return mapEnvironment(first.data as Record<string, unknown>)
+    const missingColumn = /column|schema cache|could not find/i.test(first.error.message ?? "")
+    if (!missingColumn) throwIfError(first.error)
+    const fallback = await getSupabase().from("environment_logs").insert(base).select().single()
+    throwIfError(fallback.error)
+    return mapEnvironment(fallback.data as Record<string, unknown>)
   },
 }
 

@@ -22,7 +22,7 @@ function SelectValue({ className, ...props }: SelectPrimitive.Value.Props) {
   return (
     <SelectPrimitive.Value
       data-slot="select-value"
-      className={cn("flex flex-1 text-left", className)}
+      className={cn("flex flex-1 text-left capitalize", className)}
       {...props}
     />
   )
@@ -111,8 +111,10 @@ function SelectLabel({
 function SelectItem({
   className,
   children,
+  label,
   ...props
 }: SelectPrimitive.Item.Props) {
+  const itemLabel = label ?? (typeof children === "string" ? children : undefined)
   return (
     <SelectPrimitive.Item
       data-slot="select-item"
@@ -121,6 +123,7 @@ function SelectItem({
         className
       )}
       {...props}
+      label={itemLabel}
     >
       <SelectPrimitive.ItemText className="flex flex-1 shrink-0 gap-2 whitespace-nowrap">
         {children}

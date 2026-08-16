@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Play, Square, Pause, Eye, EyeOff, Gauge, Wifi, Keyboard, ShieldCheck } from "lucide-react"
+import { Play, Square, Pause, Eye, EyeOff, Gauge, Wifi, Keyboard } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -15,9 +15,15 @@ import {
 } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { AppShell } from "@/components/layout/app-shell"
+import { Esp32ConnectPanel } from "@/components/features/telemetry/esp32-connect-panel"
+import { BehaviorEnablePanel } from "@/components/features/telemetry/behavior-enable-panel"
+import { LocationPicker } from "@/components/features/session/location-picker"
 import { useAuth } from "@/hooks/use-auth"
+import { useBehavior } from "@/hooks/use-behavior"
+import { useEsp32 } from "@/hooks/use-esp32"
 import { sessions, concentrationLogs, dataSources } from "@/lib/api"
-import { TASK_OPTIONS, STUDY_LOCATION_OPTIONS, CONCENTRATION_LEVELS, ENVIRONMENT_OPTIONS } from "@/lib/constants"
+import { TASK_OPTIONS, CONCENTRATION_LEVELS, ENVIRONMENT_OPTIONS, isLocationReady, locationSelectValue, locationOtherValue, resolvedLocation } from "@/lib/constants"
+import { formatSriLankaTime } from "@/lib/utils"
 import type { StudySession, SessionState, ConcentrationLevel } from "@/types"
 import type { DataSourcesStatus } from "@/lib/api"
 
@@ -63,6 +69,12 @@ function DataSourceIndicator({
 
 export default function StudySessionPage() {
   const { student, isLoading } = useAuth()
+  const { connected: esp32Connected, setActiveSessionId } = useEsp32()
+  const {
+    collecting: behaviorCollecting,
+    setEnabled: setBehaviorEnabled,
+    setActiveSessionId: setBehaviorSessionId,
+  } = useBehavior()
   const router = useRouter()
 
   const [activeSession, setActiveSession] = useState<StudySession | null>(null)
@@ -70,19 +82,21 @@ export default function StudySessionPage() {
 
   const [taskType, setTaskType] = useState("")
   const [location, setLocation] = useState("")
+  const [locationOther, setLocationOther] = useState("")
   const [expectedDuration, setExpectedDuration] = useState("")
 
   const [concentration, setConcentration] = useState<ConcentrationLevel>(3)
   const [environment, setEnvironment] = useState("")
   const [showReport, setShowReport] = useState(false)
-  const [showConsent, setShowConsent] = useState(false)
 
   const [consentVision, setConsentVision] = useState(false)
   const [consentBehavior, setConsentBehavior] = useState(false)
+  const [startError, setStartError] = useState("")
 
   const [editing, setEditing] = useState(false)
   const [editTaskType, setEditTaskType] = useState("")
   const [editLocation, setEditLocation] = useState("")
+  const [editLocationOther, setEditLocationOther] = useState("")
   const [editDuration, setEditDuration] = useState("")
 
   const [elapsed, setElapsed] = useState(0)
@@ -123,6 +137,27 @@ export default function StudySessionPage() {
     }
   }, [sessionState, activeSession])
 
+  useEffect(() => {
+    if (sessionState === "running" && activeSession) {
+      setActiveSessionId(activeSession.id)
+      setBehaviorSessionId(activeSession.id)
+      setBehaviorEnabled(consentBehavior)
+    } else {
+      setActiveSessionId(null)
+      setBehaviorEnabled(false)
+      if (sessionState !== "paused") {
+        setBehaviorSessionId(null)
+      }
+    }
+  }, [
+    sessionState,
+    activeSession,
+    consentBehavior,
+    setActiveSessionId,
+    setBehaviorSessionId,
+    setBehaviorEnabled,
+  ])
+
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600)
     const m = Math.floor((seconds % 3600) / 60)
@@ -130,27 +165,40 @@ export default function StudySessionPage() {
     return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`
   }
 
-  const handleCreateAndStart = async () => {
-    if (!student || !taskType) return
-    setShowConsent(true)
-  }
+  const canStart = Boolean(
+    taskType &&
+      isLocationReady(location, locationOther) &&
+      expectedDuration &&
+      Number(expectedDuration) > 0 &&
+      esp32Connected &&
+      consentBehavior,
+  )
 
-  const handleConsentConfirm = async () => {
-    if (!student || !taskType) return
-    setShowConsent(false)
+  const handleCreateAndStart = async () => {
+    if (!student || !canStart) {
+      setStartError("Fill task, location, duration, then connect ESP32 and enable Behavior Logger.")
+      return
+    }
+    setStartError("")
     try {
       const session = await sessions.create({
         studentId: student.id,
         taskType: taskType as any,
-        location: (location as any) || null,
-        expectedDuration: expectedDuration ? parseInt(expectedDuration) : null,
+        location: resolvedLocation(location, locationOther),
+        expectedDuration: parseInt(expectedDuration),
         status: "idle",
       })
       const started = await sessions.start(session.id)
       setActiveSession(started)
       setSessionState("running")
-    } catch {
+    } catch (err) {
       console.error("Failed to create session")
+      const message = err instanceof Error ? err.message : ""
+      if (/location|check constraint/i.test(message)) {
+        setStartError("Run the location SQL in Supabase first, then try again.")
+      } else {
+        setStartError("Could not start the session. Try again.")
+      }
     }
   }
 
@@ -185,7 +233,8 @@ export default function StudySessionPage() {
 
   const startEditing = () => {
     setEditTaskType(taskType)
-    setEditLocation(location)
+    setEditLocation(locationSelectValue(location))
+    setEditLocationOther(location === "other" ? locationOther : locationOtherValue(location))
     setEditDuration(expectedDuration)
     setEditing(true)
   }
@@ -193,14 +242,16 @@ export default function StudySessionPage() {
   const handleEditSave = async () => {
     if (!activeSession) return
     try {
+      if (!isLocationReady(editLocation, editLocationOther) || !editDuration) return
       const updated = await sessions.update(activeSession.id, {
         taskType: editTaskType as any,
-        location: (editLocation as any) || null,
-        expectedDuration: editDuration ? parseInt(editDuration) : null,
+        location: resolvedLocation(editLocation, editLocationOther),
+        expectedDuration: parseInt(editDuration),
       })
       setActiveSession(updated)
       setTaskType(editTaskType)
       setLocation(editLocation)
+      setLocationOther(editLocationOther)
       setExpectedDuration(editDuration)
       setEditing(false)
     } catch {
@@ -230,19 +281,25 @@ export default function StudySessionPage() {
     <AppShell studentName={student.name}>
       <div className="flex flex-col gap-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Study Session</h1>
-          <p className="text-sm text-muted-foreground">Create and manage your study sessions</p>
+          <p className="text-xs font-medium uppercase tracking-[0.2em] text-[#8b6bb0]">Collection</p>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight">Study Session</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Fill the form, connect sensors, then start.</p>
         </div>
 
-        {sessionState === "idle" && !showConsent && (
-          <Card className="border-border bg-card p-6">
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider">New Session</h2>
-            <div className="grid gap-4">
-              <div className="grid grid-cols-2 gap-4">
+        {sessionState === "idle" && (
+          <Card className="border-white/10 bg-card/80 p-6 shadow-sm">
+            <div className="mb-6">
+              <h2 className="text-lg font-semibold">Start a study session</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Fill every field, connect the ESP32, and enable the Behavior Logger.
+              </p>
+            </div>
+            <div className="grid gap-5">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div className="grid gap-1.5">
                   <Label className="text-xs">Task *</Label>
                   <Select value={taskType} onValueChange={setTaskType}>
-                    <SelectTrigger className="h-9">
+                    <SelectTrigger className="h-10">
                       <SelectValue placeholder="Select task" />
                     </SelectTrigger>
                     <SelectContent>
@@ -252,123 +309,79 @@ export default function StudySessionPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid gap-1.5">
-                  <Label className="text-xs">Study Location</Label>
-                  <Select value={location} onValueChange={setLocation}>
-                    <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Select location" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {STUDY_LOCATION_OPTIONS.map((o) => (
-                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <LocationPicker
+                  location={location}
+                  locationOther={locationOther}
+                  onLocationChange={setLocation}
+                  onOtherChange={setLocationOther}
+                />
               </div>
               <div className="grid gap-1.5">
-                <Label className="text-xs">Expected Duration (minutes)</Label>
+                <Label className="text-xs">Expected Duration (minutes) *</Label>
                 <Input
                   type="number"
                   value={expectedDuration}
                   onChange={(e) => setExpectedDuration(e.target.value)}
                   placeholder="60"
                   min={1}
-                  className="h-9"
+                  className="h-10"
                 />
               </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <Esp32ConnectPanel required />
+                <BehaviorEnablePanel
+                  required
+                  enabled={consentBehavior}
+                  onChange={setConsentBehavior}
+                />
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <span className={`rounded-full px-3 py-1 text-[11px] font-medium ring-1 ring-inset ${
+                  taskType && isLocationReady(location, locationOther) && expectedDuration
+                    ? "bg-emerald-100 text-emerald-800 ring-emerald-200"
+                    : "bg-stone-100 text-muted-foreground ring-stone-200"
+                }`}>
+                  1. Session details
+                </span>
+                <span className={`rounded-full px-3 py-1 text-[11px] font-medium ring-1 ring-inset ${
+                  esp32Connected
+                    ? "bg-emerald-100 text-emerald-800 ring-emerald-200"
+                    : "bg-stone-100 text-muted-foreground ring-stone-200"
+                }`}>
+                  2. ESP32 {esp32Connected ? "ready" : "not connected"}
+                </span>
+                <span className={`rounded-full px-3 py-1 text-[11px] font-medium ring-1 ring-inset ${
+                  consentBehavior
+                    ? "bg-emerald-100 text-emerald-800 ring-emerald-200"
+                    : "bg-stone-100 text-muted-foreground ring-stone-200"
+                }`}>
+                  3. Behavior {consentBehavior ? "enabled" : "permission needed"}
+                </span>
+              </div>
+
+              {startError && <p className="text-xs text-red-600">{startError}</p>}
               <button
                 onClick={handleCreateAndStart}
-                disabled={!taskType}
-                className="flex items-center justify-center gap-2 rounded-md bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={!canStart}
+                className="flex items-center justify-center gap-2 rounded-2xl bg-[#7b3fa0] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#6b4c9a] disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-500"
               >
                 <Play className="h-4 w-4 fill-current" />
                 START SESSION
               </button>
-            </div>
-          </Card>
-        )}
-
-        {showConsent && (
-          <Card className="border-border bg-card p-6">
-            <div className="mb-4 flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-primary" />
-              <h2 className="text-sm font-semibold uppercase tracking-wider">Data Collection Consent</h2>
-            </div>
-            <p className="mb-4 text-sm text-muted-foreground">
-              Before starting your session, please review and approve the data sources below.
-              You can choose which data to allow. You can revoke consent at any time by stopping the session.
-            </p>
-
-            <div className="grid gap-3">
-              <label className="flex cursor-pointer items-start gap-3 rounded-md border border-border bg-background/40 p-4 transition-colors hover:bg-secondary/50">
-                <input
-                  type="checkbox"
-                  checked={consentBehavior}
-                  onChange={(e) => setConsentBehavior(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-border accent-primary"
-                />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <Keyboard className="h-4 w-4 text-blue-400" />
-                    <span className="text-sm font-medium">Behavior Logger</span>
-                  </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Monitors keyboard clicks, mouse movement, idle time, and active application window.
-                    Helps understand study patterns and engagement levels.
-                  </p>
-                </div>
-              </label>
-
-              <label className="flex cursor-pointer items-start gap-3 rounded-md border border-border bg-background/40 p-4 transition-colors hover:bg-secondary/50">
-                <input
-                  type="checkbox"
-                  checked={consentVision}
-                  onChange={(e) => setConsentVision(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-border accent-primary"
-                />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <Eye className="h-4 w-4 text-purple-400" />
-                    <span className="text-sm font-medium">Vision Logger (Camera)</span>
-                  </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Uses your webcam to detect face presence, eye gaze direction, head direction,
-                    and phone usage. No video is stored — only extracted features are saved.
-                  </p>
-                </div>
-              </label>
-
-              <div className="rounded-md bg-primary/5 border border-primary/20 p-3">
-                <p className="text-xs text-muted-foreground">
-                  <span className="font-semibold text-foreground">Note:</span> ESP32 sensor data (temperature, humidity,
-                  light, noise, motion) is always collected when the hardware is connected. This does not
-                  require camera or keyboard access.
+              {!canStart && (
+                <p className="text-center text-[12px] text-muted-foreground">
+                  Task, location, duration, ESP32, and Behavior Logger are all required.
                 </p>
-              </div>
-            </div>
-
-            <div className="mt-5 flex gap-2">
-              <button
-                onClick={() => setShowConsent(false)}
-                className="flex-1 rounded-md border border-border px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-secondary"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConsentConfirm}
-                className="flex-1 flex items-center justify-center gap-2 rounded-md bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500"
-              >
-                <Play className="h-4 w-4 fill-current" />
-                Confirm &amp; Start
-              </button>
+              )}
             </div>
           </Card>
         )}
 
         {isActive && (
           <>
-            <Card className="border-border bg-card p-6">
+            <Card className="border-white/10 bg-card/80 p-6 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-2">
@@ -385,9 +398,21 @@ export default function StudySessionPage() {
                     </span>
                   </div>
                   {!editing && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {taskType} | {location || "No location"} | Started {activeSession ? new Date(activeSession.startedAt!).toLocaleTimeString() : ""}
-                    </p>
+                    <div className="mt-1">
+                      <p className="text-xs text-muted-foreground">
+                        {taskType} | {location || "No location"} | Started {activeSession ? formatSriLankaTime(activeSession.startedAt) : ""}
+                      </p>
+                      {activeSession && (
+                        <button
+                          type="button"
+                          onClick={() => navigator.clipboard.writeText(activeSession.id)}
+                          className="mt-1 font-mono text-[11px] text-primary hover:underline"
+                          title="Copy session ID for the ESP32 logger"
+                        >
+                          Session ID: {activeSession.id}
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
                 <div className="flex items-center gap-3">
@@ -435,19 +460,12 @@ export default function StudySessionPage() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="grid gap-1.5">
-                    <Label className="text-xs">Location</Label>
-                    <Select value={editLocation} onValueChange={setEditLocation}>
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue placeholder="None" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {STUDY_LOCATION_OPTIONS.map((o) => (
-                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <LocationPicker
+                    location={editLocation}
+                    locationOther={editLocationOther}
+                    onLocationChange={setEditLocation}
+                    onOtherChange={setEditLocationOther}
+                  />
                   <div className="grid gap-1.5">
                     <Label className="text-xs">Duration (min)</Label>
                     <Input
@@ -462,19 +480,43 @@ export default function StudySessionPage() {
                 </div>
               )}
 
+              {!esp32Connected && (
+                <p className="mt-3 text-xs text-amber-400">
+                  ESP32 is disconnected. Reconnect the board or sensor data will stop.
+                </p>
+              )}
+              <div className="mt-4">
+                <Esp32ConnectPanel required />
+              </div>
               <div className="mt-4 grid grid-cols-3 gap-2">
                 <DataSourceIndicator
                   label="ESP32"
                   icon={Wifi}
                   color="text-orange-400"
-                  status={sourceStatus?.environment ?? null}
+                  status={
+                    esp32Connected
+                      ? {
+                          active: true,
+                          lastSeen: sourceStatus?.environment?.lastSeen ?? null,
+                          count: sourceStatus?.environment?.count ?? 0,
+                        }
+                      : sourceStatus?.environment ?? null
+                  }
                   consented={true}
                 />
                 <DataSourceIndicator
                   label="Behavior"
                   icon={Keyboard}
-                  color="text-blue-400"
-                  status={sourceStatus?.behavior ?? null}
+                  color="text-[#7b3fa0]"
+                  status={
+                    behaviorCollecting
+                      ? {
+                          active: true,
+                          lastSeen: sourceStatus?.behavior?.lastSeen ?? null,
+                          count: sourceStatus?.behavior?.count ?? 0,
+                        }
+                      : sourceStatus?.behavior ?? null
+                  }
                   consented={consentBehavior}
                 />
                 <DataSourceIndicator
@@ -506,7 +548,7 @@ export default function StudySessionPage() {
               </div>
             </Card>
 
-            <Card className="border-border bg-card p-6">
+            <Card className="border-white/10 bg-card/80 p-6 shadow-sm">
               <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider">Self Report</h2>
               <p className="mb-3 text-xs text-muted-foreground">Rate your current concentration level (prompted every 15 minutes)</p>
 
@@ -567,7 +609,7 @@ export default function StudySessionPage() {
         )}
 
         {sessionState === "completed" && (
-          <Card className="border-border bg-card p-6">
+          <Card className="border-white/10 bg-card/80 p-6 shadow-sm">
             <div className="text-center">
               <p className="text-lg font-semibold text-emerald-400">Session Completed</p>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -579,6 +621,7 @@ export default function StudySessionPage() {
                   setSessionState("idle")
                   setTaskType("")
                   setLocation("")
+                  setLocationOther("")
                   setExpectedDuration("")
                   setElapsed(0)
                   setConsentVision(false)

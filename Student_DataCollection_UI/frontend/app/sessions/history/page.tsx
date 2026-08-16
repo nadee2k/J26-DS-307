@@ -13,10 +13,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { LocationPicker } from "@/components/features/session/location-picker"
 import { AppShell } from "@/components/layout/app-shell"
 import { useAuth } from "@/hooks/use-auth"
 import { sessions } from "@/lib/api"
-import { TASK_OPTIONS, STUDY_LOCATION_OPTIONS } from "@/lib/constants"
+import { TASK_OPTIONS, locationSelectValue, locationOtherValue, resolvedLocation, isLocationReady } from "@/lib/constants"
+import { formatSriLankaDate, formatSriLankaDateTime, formatSriLankaTime } from "@/lib/utils"
 import type { StudySession } from "@/types"
 
 export default function HistoryPage() {
@@ -32,6 +34,7 @@ export default function HistoryPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editTaskType, setEditTaskType] = useState("")
   const [editLocation, setEditLocation] = useState("")
+  const [editLocationOther, setEditLocationOther] = useState("")
   const [editDuration, setEditDuration] = useState("")
 
   useEffect(() => {
@@ -74,7 +77,13 @@ export default function HistoryPage() {
   }
 
   const getTaskLabel = (value: string) => TASK_OPTIONS.find((o) => o.value === value)?.label || value
-  const getLocationLabel = (value: string | null) => STUDY_LOCATION_OPTIONS.find((o) => o.value === value)?.label || value || "N/A"
+  const getLocationLabel = (value: string | null) => {
+    if (!value) return "N/A"
+    if (value === "home") return "Home"
+    if (value === "library") return "Library"
+    if (value === "campus") return "Campus"
+    return value
+  }
 
   const toggleExpand = (id: string) => {
     setExpandedId(expandedId === id ? null : id)
@@ -84,7 +93,8 @@ export default function HistoryPage() {
   const startEditing = (s: StudySession) => {
     setEditingId(s.id)
     setEditTaskType(s.taskType)
-    setEditLocation(s.location || "")
+    setEditLocation(locationSelectValue(s.location))
+    setEditLocationOther(locationOtherValue(s.location))
     setEditDuration(s.expectedDuration ? String(s.expectedDuration) : "")
   }
 
@@ -94,10 +104,11 @@ export default function HistoryPage() {
 
   const saveEditing = async (id: string) => {
     try {
+      if (!isLocationReady(editLocation, editLocationOther) || !editDuration) return
       const updated = await sessions.update(id, {
         taskType: editTaskType as any,
-        location: (editLocation as any) || null,
-        expectedDuration: editDuration ? parseInt(editDuration) : null,
+        location: resolvedLocation(editLocation, editLocationOther),
+        expectedDuration: parseInt(editDuration),
       })
       setAllSessions((prev) => prev.map((s) => (s.id === id ? updated : s)))
       setEditingId(null)
@@ -183,7 +194,7 @@ export default function HistoryPage() {
                       <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />
-                          {new Date(s.createdAt).toLocaleDateString()} {new Date(s.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          {formatSriLankaDate(s.createdAt)} {formatSriLankaTime(s.createdAt)}
                         </span>
                         <span className="flex items-center gap-1">
                           <MapPin className="h-3 w-3" />
@@ -221,16 +232,14 @@ export default function HistoryPage() {
                         <div>
                           <p className="text-[10px] font-medium uppercase text-muted-foreground">Location</p>
                           {editing ? (
-                            <Select value={editLocation} onValueChange={setEditLocation}>
-                              <SelectTrigger className="mt-1 h-8 text-xs" onClick={(e) => e.stopPropagation()}>
-                                <SelectValue placeholder="None" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {STUDY_LOCATION_OPTIONS.map((o) => (
-                                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            <div onClick={(e) => e.stopPropagation()}>
+                              <LocationPicker
+                                location={editLocation}
+                                locationOther={editLocationOther}
+                                onLocationChange={setEditLocation}
+                                onOtherChange={setEditLocationOther}
+                              />
+                            </div>
                           ) : (
                             <p className="mt-1 text-sm font-medium">{getLocationLabel(s.location)}</p>
                           )}
@@ -262,19 +271,29 @@ export default function HistoryPage() {
                       <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
                         <div>
                           <span className="font-medium">Started:</span>{" "}
-                          {s.startedAt ? new Date(s.startedAt).toLocaleTimeString() : "-"}
+                          {s.startedAt ? formatSriLankaTime(s.startedAt) : "-"}
                         </div>
                         <div>
                           <span className="font-medium">Ended:</span>{" "}
-                          {s.endedAt ? new Date(s.endedAt).toLocaleTimeString() : "-"}
+                          {s.endedAt ? formatSriLankaTime(s.endedAt) : "-"}
                         </div>
                         <div>
                           <span className="font-medium">Created:</span>{" "}
-                          {new Date(s.createdAt).toLocaleString()}
+                          {formatSriLankaDateTime(s.createdAt)}
                         </div>
-                        <div>
+                        <div className="sm:col-span-2">
                           <span className="font-medium">Session ID:</span>{" "}
-                          <span className="font-mono text-[10px]">{s.id.slice(0, 8)}...</span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              navigator.clipboard.writeText(s.id)
+                            }}
+                            className="break-all font-mono text-[10px] text-primary hover:underline"
+                            title="Copy full session ID"
+                          >
+                            {s.id}
+                          </button>
                         </div>
                       </div>
 

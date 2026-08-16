@@ -3,6 +3,8 @@ import type { Metadata, Viewport } from 'next'
 import { Inter, JetBrains_Mono } from 'next/font/google'
 import './globals.css'
 import { AuthProvider } from '@/hooks/use-auth'
+import { BehaviorProvider } from '@/hooks/use-behavior'
+import { Esp32Provider } from '@/hooks/use-esp32'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -17,15 +19,15 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'FocusTrack Data Collector v1.0',
+  title: 'Focus Track',
   description:
-    'Multimodal Data Collection Terminal for the FocusTrack research platform.',
+    'Student research data collector for the Focus Track platform.',
   generator: 'v0.app',
 }
 
 export const viewport: Viewport = {
-  colorScheme: 'dark',
-  themeColor: '#0f172a',
+  colorScheme: 'light',
+  themeColor: '#f6f1e8',
 }
 
 export default function RootLayout({
@@ -39,7 +41,11 @@ export default function RootLayout({
         className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased`}
       >
         <AuthProvider>
-          {children}
+          <Esp32Provider>
+            <BehaviorProvider>
+              {children}
+            </BehaviorProvider>
+          </Esp32Provider>
         </AuthProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>

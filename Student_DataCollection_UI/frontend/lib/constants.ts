@@ -30,15 +30,45 @@ export const GENDER_OPTIONS: { value: "female" | "male"; label: string }[] = [
 ]
 
 export const LEARNING_TYPE_OPTIONS: { value: LearningType; label: string }[] = [
-  { value: "screen", label: "Screen Learner" },
-  { value: "non-screen", label: "Non-screen Learner" },
+  { value: "screen", label: "Screen" },
+  { value: "non-screen", label: "Non-screen" },
 ]
 
 export const STUDY_LOCATION_OPTIONS: { value: StudyLocation; label: string }[] = [
   { value: "home", label: "Home" },
   { value: "library", label: "Library" },
   { value: "campus", label: "Campus" },
+  { value: "other", label: "Other" },
 ]
+
+export const LOCATION_PRESETS = ["home", "library", "campus"] as const
+
+export function locationSelectValue(location: string | null | undefined): string {
+  if (!location) return ""
+  if (location === "other" || LOCATION_PRESETS.includes(location as (typeof LOCATION_PRESETS)[number])) {
+    return location
+  }
+  return "other"
+}
+
+export function locationOtherValue(location: string | null | undefined): string {
+  if (!location) return ""
+  if (LOCATION_PRESETS.includes(location as (typeof LOCATION_PRESETS)[number]) || location === "other") {
+    return ""
+  }
+  return location
+}
+
+export function resolvedLocation(select: string, other: string): string {
+  if (select === "other") return other.trim()
+  return select
+}
+
+export function isLocationReady(select: string, other: string): boolean {
+  if (!select) return false
+  if (select === "other") return other.trim().length > 0
+  return true
+}
 
 export const DEFAULT_TELEMETRY_STREAMS: TelemetryStream[] = [
   { label: "ESP32 Sensor Stream", state: "INACTIVE" },

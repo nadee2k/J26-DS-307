@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Save, User } from "lucide-react"
+import { Save } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,12 +11,13 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select"
 import { AppShell } from "@/components/layout/app-shell"
+import { StudentAvatar } from "@/components/features/student/student-avatar"
 import { useAuth } from "@/hooks/use-auth"
 import { students } from "@/lib/api"
-import { GENDER_OPTIONS, LEARNING_TYPE_OPTIONS } from "@/lib/constants"
+import { LEARNING_TYPE_OPTIONS } from "@/lib/constants"
+import { GenderClipartPicker } from "@/components/features/student/gender-clipart-picker"
 
 export default function ProfilePage() {
   const { student, setStudent, isLoading } = useAuth()
@@ -95,13 +96,13 @@ export default function ProfilePage() {
         </div>
 
         <Card className="border-border bg-card p-6">
-          <div className="mb-4 flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/30">
-              <User className="h-6 w-6 text-primary" />
-            </div>
-            <div>
+          <div className="mb-4 flex items-start gap-3">
+            <StudentAvatar gender={form.gender || student.gender} name={student.name} className="h-20 w-20" />
+            <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold">{student.name}</p>
-              <p className="text-xs text-muted-foreground">ID: {student.id.slice(0, 8)}...</p>
+              <p className="mt-1 break-all font-mono text-[11px] text-muted-foreground">
+                Student ID: {student.id}
+              </p>
             </div>
           </div>
 
@@ -137,25 +138,20 @@ export default function ProfilePage() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-1.5">
-                <Label className="text-xs">Gender *</Label>
-                <Select value={form.gender} onValueChange={(v) => setForm({ ...form, gender: v })}>
-                  <SelectTrigger className="h-9">
-                    <SelectValue placeholder="Select" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {GENDER_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-1.5">
+            <div className="grid gap-1.5">
+              <Label className="text-xs">Gender *</Label>
+              <GenderClipartPicker
+                value={form.gender}
+                onChange={(gender) => setForm({ ...form, gender })}
+              />
+            </div>
+            <div className="grid gap-1.5">
                 <Label className="text-xs">Learning Type</Label>
                 <Select value={form.learningType} onValueChange={(v) => setForm({ ...form, learningType: v })}>
                   <SelectTrigger className="h-9">
-                    <SelectValue placeholder="Select" />
+                    <span className="flex flex-1 text-left">
+                      {LEARNING_TYPE_OPTIONS.find((o) => o.value === form.learningType)?.label || "Select"}
+                    </span>
                   </SelectTrigger>
                   <SelectContent>
                     {LEARNING_TYPE_OPTIONS.map((o) => (
@@ -163,7 +159,6 @@ export default function ProfilePage() {
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
             </div>
             <div className="grid gap-1.5">
               <Label className="text-xs">University</Label>

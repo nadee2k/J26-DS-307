@@ -14,7 +14,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { students } from "@/lib/api"
-import { GENDER_OPTIONS, LEARNING_TYPE_OPTIONS } from "@/lib/constants"
+import { LEARNING_TYPE_OPTIONS } from "@/lib/constants"
+import { GenderClipartPicker } from "@/components/features/student/gender-clipart-picker"
 import { useAuth } from "@/hooks/use-auth"
 import type { Student } from "@/types"
 
@@ -86,15 +87,15 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md border-border bg-card p-6">
+    <main className="flex min-h-screen items-center justify-center p-4">
+      <Card className="w-full max-w-md border-[#eadfce] bg-white p-6 shadow-sm">
         <div className="mb-6 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/30">
-            <Activity className="h-5 w-5 text-primary" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#efe6f4] ring-1 ring-[#eadfce]">
+            <Activity className="h-5 w-5 text-[#7b3fa0]" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold">FocusTrack</h1>
-            <p className="text-xs text-muted-foreground">Data Collection Terminal</p>
+            <h1 className="text-lg font-semibold">Focus Track</h1>
+            <p className="text-xs text-muted-foreground">Student research collector</p>
           </div>
         </div>
 
@@ -143,7 +144,7 @@ export default function LoginPage() {
                   ) : (
                     existingStudents.map((s) => (
                       <SelectItem key={s.id} value={s.id}>
-                        {s.name} (Age {s.age})
+                        {s.name} · {s.gender === "female" ? "Female" : "Male"} (Age {s.age})
                       </SelectItem>
                     ))
                   )}
@@ -182,25 +183,20 @@ export default function LoginPage() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="grid gap-1.5">
-                <Label className="text-xs">Gender *</Label>
-                <Select value={form.gender} onValueChange={(v) => setForm({ ...form, gender: v })}>
-                  <SelectTrigger className="h-9">
-                    <SelectValue placeholder="Select" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {GENDER_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-1.5">
+            <div className="grid gap-1.5">
+              <Label className="text-xs">Gender *</Label>
+              <GenderClipartPicker
+                value={form.gender}
+                onChange={(gender) => setForm({ ...form, gender })}
+              />
+            </div>
+            <div className="grid gap-1.5">
                 <Label className="text-xs">Learning Type</Label>
                 <Select value={form.learningType} onValueChange={(v) => setForm({ ...form, learningType: v })}>
                   <SelectTrigger className="h-9">
-                    <SelectValue placeholder="Select" />
+                    <span className="flex flex-1 text-left">
+                      {LEARNING_TYPE_OPTIONS.find((o) => o.value === form.learningType)?.label || "Select"}
+                    </span>
                   </SelectTrigger>
                   <SelectContent>
                     {LEARNING_TYPE_OPTIONS.map((o) => (
@@ -208,7 +204,6 @@ export default function LoginPage() {
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
             </div>
             <div className="grid gap-1.5">
               <Label className="text-xs">University</Label>
