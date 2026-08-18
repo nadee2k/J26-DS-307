@@ -5,6 +5,7 @@ import './globals.css'
 import { AuthProvider } from '@/hooks/use-auth'
 import { BehaviorProvider } from '@/hooks/use-behavior'
 import { Esp32Provider } from '@/hooks/use-esp32'
+import { VisionProvider } from '@/hooks/use-vision'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -43,7 +44,9 @@ export default function RootLayout({
         <AuthProvider>
           <Esp32Provider>
             <BehaviorProvider>
-              {children}
+              <VisionProvider>
+                {children}
+              </VisionProvider>
             </BehaviorProvider>
           </Esp32Provider>
         </AuthProvider>

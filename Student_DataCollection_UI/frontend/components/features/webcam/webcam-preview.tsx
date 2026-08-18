@@ -4,12 +4,14 @@ import { useEffect, useRef, useState } from "react"
 import { Eye, EyeOff, Video, VideoOff } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { useVision } from "@/hooks/use-vision"
 
 export function WebcamPreview() {
   const [enabled, setEnabled] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const { setVideoElement, lastFeatures } = useVision()
 
   useEffect(() => {
     let cancelled = false
@@ -26,6 +28,8 @@ export function WebcamPreview() {
         streamRef.current = stream
         if (videoRef.current) {
           videoRef.current.srcObject = stream
+          // Expose video element to vision processor
+          setVideoElement(videoRef.current)
         }
         setError(null)
       } catch {
@@ -38,6 +42,7 @@ export function WebcamPreview() {
       streamRef.current?.getTracks().forEach((t) => t.stop())
       streamRef.current = null
       if (videoRef.current) videoRef.current.srcObject = null
+      setVideoElement(null)
     }
 
     if (enabled) {
@@ -87,13 +92,43 @@ export function WebcamPreview() {
 
       <div className="relative min-h-0 flex-1 overflow-hidden rounded-md border border-border bg-background/60">
         {enabled ? (
-          <video
-            ref={videoRef}
-            autoPlay
-            muted
-            playsInline
-            className="h-full w-full object-cover"
-          />
+          <>
+            <video
+              ref={videoRef}
+              autoPlay
+              muted
+              playsInline
+              className="h-full w-full object-cover"
+            />
+            {/* Vision status overlay */}
+            {lastFeatures && (
+              <div className="absolute bottom-2 left-2 flex flex-wrap gap-1">
+                {lastFeatures.faceDetected && (
+                  <span className="rounded bg-green-500/80 px-1.5 py-0.5 font-mono text-[9px] font-semibold text-white">
+                    FACE
+                  </span>
+                )}
+                {lastFeatures.eyeGaze === "on-screen" && (
+                  <span className="rounded bg-blue-500/80 px-1.5 py-0.5 font-mono text-[9px] font-semibold text-white">
+                    GAZE ON
+                  </span>
+                )}
+                {lastFeatures.eyeGaze === "off-screen" && (
+                  <span className="rounded bg-yellow-500/80 px-1.5 py-0.5 font-mono text-[9px] font-semibold text-white">
+                    GAZE OFF
+                  </span>
+                )}
+                {lastFeatures.phoneDetected && (
+                  <span className="rounded bg-red-500/80 px-1.5 py-0.5 font-mono text-[9px] font-semibold text-white">
+                    PHONE
+                  </span>
+                )}
+                <span className="rounded bg-gray-500/80 px-1.5 py-0.5 font-mono text-[9px] font-semibold text-white">
+                  {lastFeatures.headDirection.toUpperCase()}
+                </span>
+              </div>
+            )}
+          </>
         ) : (
           <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-muted-foreground">
             <VideoOff className="h-6 w-6" aria-hidden="true" />

@@ -21,6 +21,8 @@ import { LocationPicker } from "@/components/features/session/location-picker"
 import { useAuth } from "@/hooks/use-auth"
 import { useBehavior } from "@/hooks/use-behavior"
 import { useEsp32 } from "@/hooks/use-esp32"
+import { useVision } from "@/hooks/use-vision"
+import { GazeCalibration } from "@/components/features/vision/gaze-calibration"
 import { sessions, concentrationLogs, dataSources } from "@/lib/api"
 import { TASK_OPTIONS, CONCENTRATION_LEVELS, ENVIRONMENT_OPTIONS, isLocationReady, locationSelectValue, locationOtherValue, resolvedLocation } from "@/lib/constants"
 import { formatSriLankaTime } from "@/lib/utils"
@@ -75,7 +77,17 @@ export default function StudySessionPage() {
     setEnabled: setBehaviorEnabled,
     setActiveSessionId: setBehaviorSessionId,
   } = useBehavior()
+  const {
+    collecting: visionCollecting,
+    calibrated: visionCalibrated,
+    setEnabled: setVisionEnabled,
+    setActiveSessionId: setVisionSessionId,
+    setCalibration: setVisionCalibration,
+  } = useVision()
   const router = useRouter()
+  
+  const [showCalibration, setShowCalibration] = useState(false)
+  const videoElementRef = useRef<HTMLVideoElement | null>(null)
 
   const [activeSession, setActiveSession] = useState<StudySession | null>(null)
   const [sessionState, setSessionState] = useState<SessionState>("idle")
@@ -141,21 +153,28 @@ export default function StudySessionPage() {
     if (sessionState === "running" && activeSession) {
       setActiveSessionId(activeSession.id)
       setBehaviorSessionId(activeSession.id)
+      setVisionSessionId(activeSession.id)
       setBehaviorEnabled(consentBehavior)
+      setVisionEnabled(consentVision)
     } else {
       setActiveSessionId(null)
       setBehaviorEnabled(false)
+      setVisionEnabled(false)
       if (sessionState !== "paused") {
         setBehaviorSessionId(null)
+        setVisionSessionId(null)
       }
     }
   }, [
     sessionState,
     activeSession,
     consentBehavior,
+    consentVision,
     setActiveSessionId,
     setBehaviorSessionId,
+    setVisionSessionId,
     setBehaviorEnabled,
+    setVisionEnabled,
   ])
 
   const formatTime = (seconds: number) => {
@@ -179,6 +198,20 @@ export default function StudySessionPage() {
       setStartError("Fill task, location, duration, then connect ESP32 and enable Behavior Logger.")
       return
     }
+    
+    // If vision consent is given, show calibration first
+    if (consentVision && !visionCalibrated) {
+      // Get video element
+      const videoElements = document.querySelectorAll('video')
+      if (videoElements.length > 0) {
+        videoElementRef.current = videoElements[0] as HTMLVideoElement
+        setShowCalibration(true)
+      } else {
+        setStartError("Please show the webcam view before starting with vision consent.")
+      }
+      return
+    }
+    
     setStartError("")
     try {
       const session = await sessions.create({
@@ -200,6 +233,34 @@ export default function StudySessionPage() {
         setStartError("Could not start the session. Try again.")
       }
     }
+  }
+  
+  const handleCalibrationComplete = async (calibration: any) => {
+    setVisionCalibration(calibration)
+    setShowCalibration(false)
+    // Now actually start the session
+    if (!student) return
+    
+    try {
+      const session = await sessions.create({
+        studentId: student.id,
+        taskType: taskType as any,
+        location: resolvedLocation(location, locationOther),
+        expectedDuration: parseInt(expectedDuration),
+        status: "idle",
+      })
+      const started = await sessions.start(session.id)
+      setActiveSession(started)
+      setSessionState("running")
+    } catch (err) {
+      console.error("Failed to create session")
+      setStartError("Could not start the session. Try again.")
+    }
+  }
+  
+  const handleCalibrationCancel = () => {
+    setShowCalibration(false)
+    setStartError("Calibration cancelled. Uncheck vision consent if you don't want to use it.")
   }
 
   const handlePause = async () => {
@@ -523,7 +584,15 @@ export default function StudySessionPage() {
                   label="Vision"
                   icon={consentVision ? Eye : EyeOff}
                   color="text-purple-400"
-                  status={sourceStatus?.vision ?? null}
+                  status={
+                    visionCollecting
+                      ? {
+                          active: true,
+                          lastSeen: new Date().toISOString(),
+                          count: 0,
+                        }
+                      : sourceStatus?.vision ?? null
+                  }
                   consented={consentVision}
                 />
               </div>
@@ -693,6 +762,15 @@ export default function StudySessionPage() {
             </div>
           </Card>
         </div>
+      )}
+      
+      {/* Gaze Calibration Modal */}
+      {showCalibration && videoElementRef.current && (
+        <GazeCalibration
+          videoElement={videoElementRef.current}
+          onComplete={handleCalibrationComplete}
+          onCancel={handleCalibrationCancel}
+        />
       )}
     </AppShell>
   )
