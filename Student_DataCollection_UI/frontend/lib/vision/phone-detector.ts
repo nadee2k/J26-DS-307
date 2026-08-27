@@ -34,7 +34,10 @@ export class PhoneDetector {
 
   async detectPhone(videoElement: HTMLVideoElement): Promise<PhoneDetection> {
     if (!this.model || !this.initialized) {
-      throw new Error("PhoneDetector not initialized")
+      // Don't throw: a caller processing a stream of frames should just
+      // treat this frame as "no phone detected" rather than losing the
+      // whole feature set (face/gaze/head pose) for the frame.
+      return { detected: false, confidence: 0 }
     }
 
     try {

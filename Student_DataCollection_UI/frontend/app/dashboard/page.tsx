@@ -11,12 +11,14 @@ import { useAuth } from "@/hooks/use-auth"
 import { sessions } from "@/lib/api"
 import { formatSriLankaDate, formatSriLankaTime } from "@/lib/utils"
 import { useBehavior } from "@/hooks/use-behavior"
+import { useVision } from "@/hooks/use-vision"
 import type { StudySession } from "@/types"
 import Link from "next/link"
 
 export default function DashboardPage() {
   const { student, isLoading } = useAuth()
   const { collecting: behaviorCollecting, lastSnapshot } = useBehavior()
+  const { collecting: visionCollecting, lastFeatures } = useVision()
   const router = useRouter()
   const [recentSessions, setRecentSessions] = useState<StudySession[]>([])
   const [stats, setStats] = useState({ total: 0, completed: 0, running: 0 })
@@ -166,14 +168,29 @@ export default function DashboardPage() {
                   Starts only if you allow it when beginning a study session.
                 </p>
               </div>
-              <div className="flex items-center justify-between rounded-xl border border-[#d9d4cc] bg-[#e8e8e8] px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <Eye className="h-4 w-4 text-[#7b3fa0]" />
-                  <span className="text-sm font-medium">Vision Logger</span>
+              <div className="rounded-xl border border-[#d9d4cc] bg-[#e8e8e8] px-4 py-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Eye className="h-4 w-4 text-[#7b3fa0]" />
+                    <span className="text-sm font-medium">Vision Logger</span>
+                  </div>
+                  <span className={`rounded-sm px-1.5 py-0.5 font-mono text-[10px] font-semibold ring-1 ring-inset ${
+                    visionCollecting
+                      ? "bg-emerald-500/10 text-emerald-400 ring-emerald-500/20"
+                      : "bg-red-500/10 text-red-400 ring-red-500/20"
+                  }`}>
+                    {visionCollecting ? "ACTIVE" : "INACTIVE"}
+                  </span>
                 </div>
-                <span className="rounded-sm bg-red-500/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-red-400 ring-1 ring-inset ring-red-500/20">
-                  INACTIVE
-                </span>
+                {visionCollecting && lastFeatures && (
+                  <p className="mt-2 font-mono text-[11px] text-muted-foreground">
+                    face {lastFeatures.faceDetected ? "yes" : "no"} · gaze {lastFeatures.eyeGaze} ·
+                    head {lastFeatures.headDirection} · phone {lastFeatures.phoneDetected ? "yes" : "no"}
+                  </p>
+                )}
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  Starts only if you allow the camera when beginning a study session.
+                </p>
               </div>
             </div>
           </Card>

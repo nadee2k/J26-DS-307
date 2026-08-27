@@ -72,6 +72,7 @@ export class FaceDetector {
   private faceMesh: MediaPipeFaceMeshInstance | null = null
   private initialized = false
   private loading = false
+  private detecting = false
 
   async initialize(): Promise<void> {
     if (this.initialized || this.loading) return
@@ -108,26 +109,44 @@ export class FaceDetector {
     if (!this.faceMesh || !this.initialized) {
       throw new Error("FaceDetector not initialized")
     }
+    // MediaPipe has nothing to read from a video that hasn't produced a frame yet.
+    if (videoElement.readyState < 2 || videoElement.videoWidth === 0) {
+      return null
+    }
+    // Guard against overlapping detectFace calls: MediaPipe's `send()` runs one
+    // graph pass at a time, and calling it again before the previous pass
+    // resolves can throw/reject inside the WASM runtime.
+    if (this.detecting) {
+      return null
+    }
+    this.detecting = true
 
-    return new Promise((resolve) => {
-      this.faceMesh!.onResults((results: MediaPipeFaceMeshResults) => {
-        if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-          const landmarks = results.multiFaceLandmarks[0]
-          resolve({
-            landmarks: landmarks.map((lm) => ({
-              x: lm.x,
-              y: lm.y,
-              z: lm.z || 0,
-            })),
-            confidence: 1.0, // MediaPipe doesn't provide per-face confidence
-          })
-        } else {
-          resolve(null)
-        }
+    try {
+      return await new Promise<FaceLandmarks | null>((resolve, reject) => {
+        this.faceMesh!.onResults((results: MediaPipeFaceMeshResults) => {
+          if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+            const landmarks = results.multiFaceLandmarks[0]
+            resolve({
+              landmarks: landmarks.map((lm) => ({
+                x: lm.x,
+                y: lm.y,
+                z: lm.z || 0,
+              })),
+              confidence: 1.0, // MediaPipe doesn't provide per-face confidence
+            })
+          } else {
+            resolve(null)
+          }
+        })
+
+        this.faceMesh!.send({ image: videoElement }).catch(reject)
       })
-
-      this.faceMesh!.send({ image: videoElement })
-    })
+    } catch (error) {
+      console.error("FaceDetector frame processing failed:", error)
+      return null
+    } finally {
+      this.detecting = false
+    }
   }
 
   dispose(): void {

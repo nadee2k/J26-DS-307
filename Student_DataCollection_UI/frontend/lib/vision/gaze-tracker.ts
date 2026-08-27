@@ -15,7 +15,7 @@ export interface GazeEstimate {
 export type GazeState = "on-screen" | "off-screen" | "invalid"
 
 export interface CalibrationModel {
-  onScreenSamples: Array<{ iris: { x: number; y: number }; target: { x: number; y: number } }>
+  onScreenSamples: Array<{ iris: { x: number; y: number }; target?: { x: number; y: number } }>
   offScreenSamples: Array<{ iris: { x: number; y: number } }>
   trained: boolean
 }

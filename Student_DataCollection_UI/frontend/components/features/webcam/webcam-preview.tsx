@@ -6,12 +6,16 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useVision } from "@/hooks/use-vision"
 
-export function WebcamPreview() {
-  const [enabled, setEnabled] = useState(false)
+export function WebcamPreview({ active = false }: { active?: boolean }) {
+  const [enabled, setEnabled] = useState(active)
   const [error, setError] = useState<string | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const { setVideoElement, lastFeatures } = useVision()
+
+  useEffect(() => {
+    if (active) setEnabled(true)
+  }, [active])
 
   useEffect(() => {
     let cancelled = false
@@ -58,7 +62,7 @@ export function WebcamPreview() {
   }, [enabled])
 
   return (
-    <Card className="flex min-h-0 flex-1 flex-col gap-2.5 border-border bg-card p-4">
+    <Card className="flex min-h-[280px] flex-1 flex-col gap-2.5 border-[#d9d4cc] bg-white p-4 shadow-sm">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Video

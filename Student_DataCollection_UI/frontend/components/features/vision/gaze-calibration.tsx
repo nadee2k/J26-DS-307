@@ -38,11 +38,12 @@ interface GazeCalibrationProps {
 }
 
 export function GazeCalibration({ videoElement, onComplete, onCancel }: GazeCalibrationProps) {
-  const [step, setStep] = useState<"intro" | "onscreen" | "offscreen" | "training">("intro")
+  const [step, setStep] = useState<"intro" | "loading" | "onscreen" | "offscreen" | "training">("loading")
   const [currentPointIndex, setCurrentPointIndex] = useState(0)
   const [currentPromptIndex, setCurrentPromptIndex] = useState(0)
   const [progress, setProgress] = useState(0)
-  const [message, setMessage] = useState("Get ready to calibrate your gaze...")
+  const [message, setMessage] = useState("Loading the vision model...")
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   const faceDetectorRef = useRef<FaceDetector | null>(null)
   const calibrationDataRef = useRef<CalibrationModel>({
@@ -50,43 +51,66 @@ export function GazeCalibration({ videoElement, onComplete, onCancel }: GazeCali
     offScreenSamples: [],
     trained: false,
   })
+  // Guards every async loop below so that if this component unmounts (cancel,
+  // a dev Fast Refresh reload, or the parent removing the modal) mid-collection,
+  // the in-flight recursive collectOnScreenPoint/collectSamples chain stops
+  // immediately instead of spinning forever against a disposed FaceDetector.
+  const activeRef = useRef(true)
 
   useEffect(() => {
+    activeRef.current = true
     const detector = new FaceDetector()
-    detector.initialize().then(() => {
-      faceDetectorRef.current = detector
-    })
+    detector
+      .initialize()
+      .then(() => {
+        if (!activeRef.current) return
+        faceDetectorRef.current = detector
+        setStep("intro")
+        setMessage("Get ready to calibrate your gaze...")
+      })
+      .catch((error) => {
+        if (!activeRef.current) return
+        console.error("Failed to load vision model for calibration:", error)
+        setLoadError("Could not load the vision model. Check your internet connection and try again.")
+      })
 
     return () => {
+      activeRef.current = false
       detector.dispose()
     }
   }, [])
 
   const collectSamples = async (targetPoint?: { x: number; y: number }) => {
-    if (!faceDetectorRef.current) return
+    if (!faceDetectorRef.current) return []
 
     const samples: Array<{ iris: { x: number; y: number }; target?: { x: number; y: number } }> = []
     const sampleCount = VISION_CONFIG.CALIBRATION_SAMPLES_PER_POINT
 
     for (let i = 0; i < sampleCount; i++) {
-      const landmarks = await faceDetectorRef.current.detectFace(videoElement)
-      if (landmarks && landmarks.landmarks.length > 468) {
-        // Extract iris position (simplified)
-        const leftIrisPoints = [468, 469, 470, 471, 472]
-        const rightIrisPoints = [473, 474, 475, 476, 477]
+      if (!activeRef.current) break
+      try {
+        const landmarks = await faceDetectorRef.current.detectFace(videoElement)
+        if (landmarks && landmarks.landmarks.length > 468) {
+          // Extract iris position (simplified)
+          const leftIrisPoints = [468, 469, 470, 471, 472]
+          const rightIrisPoints = [473, 474, 475, 476, 477]
 
-        const leftX = leftIrisPoints.reduce((sum, idx) => sum + landmarks.landmarks[idx].x, 0) / 5
-        const leftY = leftIrisPoints.reduce((sum, idx) => sum + landmarks.landmarks[idx].y, 0) / 5
-        const rightX = rightIrisPoints.reduce((sum, idx) => sum + landmarks.landmarks[idx].x, 0) / 5
-        const rightY = rightIrisPoints.reduce((sum, idx) => sum + landmarks.landmarks[idx].y, 0) / 5
+          const leftX = leftIrisPoints.reduce((sum, idx) => sum + landmarks.landmarks[idx].x, 0) / 5
+          const leftY = leftIrisPoints.reduce((sum, idx) => sum + landmarks.landmarks[idx].y, 0) / 5
+          const rightX = rightIrisPoints.reduce((sum, idx) => sum + landmarks.landmarks[idx].x, 0) / 5
+          const rightY = rightIrisPoints.reduce((sum, idx) => sum + landmarks.landmarks[idx].y, 0) / 5
 
-        const irisX = (leftX + rightX) / 2
-        const irisY = (leftY + rightY) / 2
+          const irisX = (leftX + rightX) / 2
+          const irisY = (leftY + rightY) / 2
 
-        samples.push({
-          iris: { x: irisX, y: irisY },
-          target: targetPoint,
-        })
+          samples.push({
+            iris: { x: irisX, y: irisY },
+            target: targetPoint,
+          })
+        }
+      } catch (error) {
+        // Skip this frame rather than aborting the whole calibration point.
+        console.warn("Skipped a calibration sample due to a detection error:", error)
       }
 
       setProgress(((i + 1) / sampleCount) * 100)
@@ -99,30 +123,40 @@ export function GazeCalibration({ videoElement, onComplete, onCancel }: GazeCali
   const startCalibration = () => {
     setStep("onscreen")
     setMessage("Look at the dot and keep your head still")
-    collectOnScreenPoint()
+    collectOnScreenPoint(0)
   }
 
-  const collectOnScreenPoint = async () => {
-    if (currentPointIndex >= CALIBRATION_POINTS.length) {
+  // Takes the point index explicitly (instead of reading `currentPointIndex`
+  // state) because this function recurses on itself before React re-renders,
+  // so the state value captured in the closure would otherwise stay stale
+  // across iterations and the loop would keep re-collecting the same point.
+  const collectOnScreenPoint = async (pointIndex: number) => {
+    if (!activeRef.current) return
+
+    if (pointIndex >= CALIBRATION_POINTS.length) {
       setStep("offscreen")
       setCurrentPromptIndex(0)
       setMessage(OFF_SCREEN_PROMPTS[0])
       return
     }
 
-    const point = CALIBRATION_POINTS[currentPointIndex]
+    setCurrentPointIndex(pointIndex)
+    const point = CALIBRATION_POINTS[pointIndex]
     setProgress(0)
 
     const samples = await collectSamples(point)
+    if (!activeRef.current) return
+
     if (samples) {
       calibrationDataRef.current.onScreenSamples.push(...samples)
     }
 
-    setCurrentPointIndex(currentPointIndex + 1)
     await new Promise((resolve) => setTimeout(resolve, 500))
+    if (!activeRef.current) return
 
-    if (currentPointIndex + 1 < CALIBRATION_POINTS.length) {
-      collectOnScreenPoint()
+    const nextIndex = pointIndex + 1
+    if (nextIndex < CALIBRATION_POINTS.length) {
+      collectOnScreenPoint(nextIndex)
     } else {
       setStep("offscreen")
       setCurrentPromptIndex(0)
@@ -130,14 +164,19 @@ export function GazeCalibration({ videoElement, onComplete, onCancel }: GazeCali
     }
   }
 
-  const collectOffScreenSample = async () => {
+  // Same rationale as collectOnScreenPoint: pass the prompt index explicitly.
+  const collectOffScreenSample = async (promptIndex: number = currentPromptIndex) => {
+    if (!activeRef.current) return
+
     setProgress(0)
     const samples = await collectSamples()
+    if (!activeRef.current) return
+
     if (samples) {
       calibrationDataRef.current.offScreenSamples.push(...samples)
     }
 
-    const nextIndex = currentPromptIndex + 1
+    const nextIndex = promptIndex + 1
     if (nextIndex < OFF_SCREEN_PROMPTS.length) {
       setCurrentPromptIndex(nextIndex)
       setMessage(OFF_SCREEN_PROMPTS[nextIndex])
@@ -155,6 +194,7 @@ export function GazeCalibration({ videoElement, onComplete, onCancel }: GazeCali
     calibrationDataRef.current.trained = true
 
     setTimeout(() => {
+      if (!activeRef.current) return
       onComplete(calibrationDataRef.current)
     }, 1000)
   }
@@ -189,7 +229,22 @@ export function GazeCalibration({ videoElement, onComplete, onCancel }: GazeCali
           )}
         </div>
 
-        {step === "intro" && (
+        {loadError && (
+          <div className="flex flex-col items-center gap-3">
+            <p className="text-sm text-red-400">{loadError}</p>
+            <Button onClick={onCancel} variant="outline" size="lg">
+              Cancel
+            </Button>
+          </div>
+        )}
+
+        {step === "loading" && !loadError && (
+          <Button variant="outline" size="lg" disabled>
+            Loading...
+          </Button>
+        )}
+
+        {step === "intro" && !loadError && (
           <div className="flex gap-3">
             <Button onClick={startCalibration} size="lg">
               Start Calibration
@@ -201,7 +256,7 @@ export function GazeCalibration({ videoElement, onComplete, onCancel }: GazeCali
         )}
 
         {step === "offscreen" && progress >= 100 && (
-          <Button onClick={collectOffScreenSample} size="lg">
+          <Button onClick={() => collectOffScreenSample()} size="lg">
             Next
           </Button>
         )}

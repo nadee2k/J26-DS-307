@@ -17,6 +17,8 @@ import { Slider } from "@/components/ui/slider"
 import { AppShell } from "@/components/layout/app-shell"
 import { Esp32ConnectPanel } from "@/components/features/telemetry/esp32-connect-panel"
 import { BehaviorEnablePanel } from "@/components/features/telemetry/behavior-enable-panel"
+import { VisionEnablePanel } from "@/components/features/telemetry/vision-enable-panel"
+import { WebcamPreview } from "@/components/features/webcam/webcam-preview"
 import { LocationPicker } from "@/components/features/session/location-picker"
 import { useAuth } from "@/hooks/use-auth"
 import { useBehavior } from "@/hooks/use-behavior"
@@ -352,7 +354,7 @@ export default function StudySessionPage() {
             <div className="mb-6">
               <h2 className="text-lg font-semibold">Start a study session</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Fill every field, connect the ESP32, and enable the Behavior Logger.
+                Fill every field, then connect ESP32, Behavior, and Vision loggers.
               </p>
             </div>
             <div className="grid gap-5">
@@ -389,14 +391,24 @@ export default function StudySessionPage() {
                 />
               </div>
 
-              <div className="grid gap-3 md:grid-cols-2">
+              <div className="grid gap-3 lg:grid-cols-3">
                 <Esp32ConnectPanel required />
                 <BehaviorEnablePanel
                   required
                   enabled={consentBehavior}
                   onChange={setConsentBehavior}
                 />
+                <VisionEnablePanel
+                  enabled={consentVision}
+                  calibrated={visionCalibrated}
+                  collecting={visionCollecting}
+                  onChange={setConsentVision}
+                />
               </div>
+
+              {consentVision && (
+                <WebcamPreview active />
+              )}
 
               <div className="flex flex-wrap gap-2">
                 <span className={`rounded-full px-3 py-1 text-[11px] font-medium ring-1 ring-inset ${
@@ -419,6 +431,13 @@ export default function StudySessionPage() {
                     : "bg-stone-100 text-muted-foreground ring-stone-200"
                 }`}>
                   3. Behavior {consentBehavior ? "enabled" : "permission needed"}
+                </span>
+                <span className={`rounded-full px-3 py-1 text-[11px] font-medium ring-1 ring-inset ${
+                  consentVision
+                    ? "bg-emerald-100 text-emerald-800 ring-emerald-200"
+                    : "bg-stone-100 text-muted-foreground ring-stone-200"
+                }`}>
+                  4. Vision {consentVision ? "enabled" : "optional"}
                 </span>
               </div>
 
@@ -549,6 +568,11 @@ export default function StudySessionPage() {
               <div className="mt-4">
                 <Esp32ConnectPanel required />
               </div>
+              {consentVision && (
+                <div className="mt-4">
+                  <WebcamPreview active />
+                </div>
+              )}
               <div className="mt-4 grid grid-cols-3 gap-2">
                 <DataSourceIndicator
                   label="ESP32"

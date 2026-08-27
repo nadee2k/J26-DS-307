@@ -100,12 +100,18 @@ export class VisionProcessor {
     const headPose = this.poseEstimator.estimatePose(faceLandmarks)
     const headDirection = this.poseEstimator.classifyDirection(headPose)
 
-    // Detect phone (only if processing time allows)
+    // Detect phone (only if processing time allows). A phone-detection
+    // failure should never prevent face/gaze/head-pose features from being
+    // returned, so this is intentionally isolated with its own try/catch.
     let phoneDetected = false
     const elapsedTime = performance.now() - startTime
     if (elapsedTime < VISION_CONFIG.MAX_PROCESSING_TIME_MS) {
-      const phoneDetection = await this.phoneDetector.detectPhone(videoElement)
-      phoneDetected = phoneDetection.detected
+      try {
+        const phoneDetection = await this.phoneDetector.detectPhone(videoElement)
+        phoneDetected = phoneDetection.detected
+      } catch (error) {
+        console.warn("Phone detection failed for this frame:", error)
+      }
     }
 
     return {
