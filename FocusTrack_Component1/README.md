@@ -44,6 +44,7 @@ and an ablation analysis (proposal sections 3.9–3.11).
 | `src/simulation.py` | Synthetic data so the pipeline runs before real data exists |
 | `src/visualization/` | Reusable plotting helpers |
 | `scripts/run_pipeline.py` | CLI entry point |
+| `ui/` | Demo UI: FastAPI API + static HTML/JS frontend |
 | `notebooks/` | Exploratory analysis |
 | `tests/` | Unit + smoke tests (`pytest`) |
 
@@ -76,10 +77,39 @@ Artifacts are written to:
 - `data/results/…` (transition matrices, context analysis, HMM analysis, experiment and statistical results)
 - `data/results/integration/behavioural_output_window.csv`,
   `data/results/integration/behavioural_output_session.csv`,
-  `data/results/integration_validation.json`
+  `data/results/integration_validation.json`, `data/results/run_manifest.json`
+- `data/synthetic/…` — the same layout for the synthetic demo source (UI only)
 - `models/state_model.joblib`, `state_scaler.joblib`, `hmm_model.joblib`
 
 Then open `notebooks/01_exploratory_analysis.ipynb`.
+
+## Demo UI
+
+```bash
+python -m ui.app --port 8000     # then open http://localhost:8000
+```
+
+A FastAPI server plus a static HTML/JS frontend that reads the pipeline
+artefacts live. Two views of the data can be switched in the header:
+
+- **Real pilot data** — the Supabase tables, written to the default `data/` layout;
+- **Synthetic demo data** — generated on demand into `data/synthetic/`, so the
+  full analysis can be demonstrated before pilot collection finishes
+  (banner-labelled as demonstration-only).
+
+Tabs:
+
+| Tab | Shows | Proposal link |
+|---|---|---|
+| Overview & run | data counts, last-run parameters, cluster quality, a run form + live log | — |
+| States & transitions | state distribution, per-state profiles, session timelines, transition matrices (incl. per-context), interruptions/recoveries | SO4 |
+| Context modelling | context distribution, state composition per context, context-effect analysis, model-safe vs descriptive features | SO5 |
+| Evaluation & statistics | baseline/proposed/ablation, HMM augmentation, KMeans vs HMM states, paired statistics with bootstrap CIs, LOPO variation | SO6 |
+| Integration output | schema validation status, declared fields, the session and window behavioural outputs | M10 |
+
+Runs execute in a background thread (`POST /api/run`, polled via
+`GET /api/status`), one at a time, and refresh the artefacts for the selected
+source when they finish.
 
 ## Data schema
 
@@ -104,6 +134,10 @@ pseudonymised, and the raw logs are never sent to external servers.
 
 ```bash
 pytest -q
+
+# optional: headless check that every demo-UI view renders against a running server
+python -m ui.app --port 8000 &
+node scripts/ui_smoke.js ui/static/app.js
 ```
 
 ## Notes and current status

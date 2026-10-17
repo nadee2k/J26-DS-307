@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FocusTrack · Component 1 — Behavioural Intelligence</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">◑</div>
+      <div>
+        <h1>FocusTrack <span class="muted">· Component 1</span></h1>
+        <p>Context-aware learner interaction state modelling</p>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="switch" id="source-switch" role="tablist" aria-label="Data source">
+        <button data-source="real" class="active">Real pilot data</button>
+        <button data-source="synthetic">Synthetic demo</button>
+      </div>
+      <div class="pill" id="status-pill"><span class="dot" id="status-dot"></span><span id="status-text">idle</span></div>
+    </div>
+  </header>
+
+  <div class="banner" id="source-note" hidden></div>
+
+  <nav class="tabs" id="tabs">
+    <button data-tab="overview" class="active">Overview &amp; run</button>
+    <button data-tab="states">States &amp; transitions <span class="badge">SO4</span></button>
+    <button data-tab="context">Context modelling <span class="badge">SO5</span></button>
+    <button data-tab="evaluation">Evaluation &amp; statistics <span class="badge">SO6</span></button>
+    <button data-tab="integration">Integration output <span class="badge">M10</span></button>
+  </nav>
+
+  <main>
+    <!-- OVERVIEW -->
+    <section id="tab-overview" class="tab active">
+      <div class="cards" id="ov-cards"></div>
+
+      <div class="grid-2">
+        <div class="panel">
+          <h2>Last run</h2>
+          <div id="ov-run" class="body"></div>
+        </div>
+        <div class="panel">
+          <h2>Interaction-state cluster quality <span class="hint">KMeans on window features</span></h2>
+          <div id="ov-quality" class="body"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Run the pipeline</h2>
+        <div class="body">
+          <form id="run-form" class="run-form">
+            <label>Window size
+              <select name="window_seconds">
+                <option value="60" selected>60 s</option>
+                <option value="300">300 s</option>
+              </select>
+            </label>
+            <label>Interaction states
+              <select name="n_states">
+                <option>2</option><option>3</option><option selected>4</option>
+                <option>5</option><option>6</option>
+              </select>
+            </label>
+            <label>HMM hidden regimes
+              <select name="n_hidden">
+                <option>2</option><option selected>3</option><option>4</option>
+                <option>5</option><option>6</option>
+              </select>
+            </label>
+            <label class="check"><input type="checkbox" name="run_ml" checked /> Run ML experiments</label>
+            <label class="check"><input type="checkbox" name="run_hmm" checked /> Run HMM experiments</label>
+            <label class="check" id="opt-export"><input type="checkbox" name="export" checked /> Pull fresh tables from Supabase</label>
+            <div class="synth-only" id="synth-opts" hidden>
+              <label>Participants <input type="number" name="participants" value="15" min="2" max="60" /></label>
+              <label>Sessions each <input type="number" name="sessions_per_participant" value="3" min="1" max="10" /></label>
+              <label>Session length (s) <input type="number" name="duration_seconds" value="600" min="120" max="3600" /></label>
+            </div>
+            <button type="button" id="run-btn" class="primary">Run pipeline</button>
+          </form>
+          <pre id="run-log" class="log" hidden></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- STATES & TRANSITIONS -->
+    <section id="tab-states" class="tab">
+      <div class="grid-2">
+        <div class="panel">
+          <h2>Windows per interaction state</h2>
+          <div class="body" id="chart-state-dist"></div>
+        </div>
+        <div class="panel">
+          <h2>State profiles <span class="hint">per-state feature means</span></h2>
+          <div class="body" id="tbl-state-profiles"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>State timeline by session <span class="hint">hover a window for detail</span></h2>
+        <div class="body" id="chart-timeline"></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="panel">
+          <h2>State transition matrix <span class="hint">SO4</span></h2>
+          <div class="body" id="chart-transitions"></div>
+        </div>
+        <div class="panel">
+          <h2>HMM hidden regimes <span class="hint">descriptive, not model input</span></h2>
+          <div class="body" id="chart-hmm"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Interruptions &amp; recoveries per session <span class="hint">structural definition: a state change / an A→B→A return</span></h2>
+        <div class="body" id="tbl-session-transitions"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Transition matrix by context</h2>
+        <div class="body">
+          <label class="inline">Context
+            <select id="ctx-transition-select"></select>
+          </label>
+          <div id="chart-transitions-context"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONTEXT -->
+    <section id="tab-context" class="tab">
+      <div class="grid-2">
+        <div class="panel">
+          <h2>Windows per context</h2>
+          <div class="body" id="chart-context-dist"></div>
+        </div>
+        <div class="panel">
+          <h2>State composition by context</h2>
+          <div class="body" id="chart-context-state"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Context-conditioned analysis <span class="hint">descriptive only — uses the reference label</span></h2>
+        <div class="body" id="tbl-context-analysis"></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="panel">
+          <h2>Context × state agreement</h2>
+          <div class="body" id="tbl-context-agreement"></div>
+        </div>
+        <div class="panel">
+          <h2>Model-safe context features <span class="hint">no target leakage</span></h2>
+          <div class="body" id="context-note"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- EVALUATION -->
+    <section id="tab-evaluation" class="tab">
+      <div class="panel">
+        <h2>Baseline vs proposed vs ablation <span class="hint">Macro-F1, mean across folds</span></h2>
+        <div class="body" id="chart-exp-summary"></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="panel">
+          <h2>Sequential (HMM) augmentation</h2>
+          <div class="body" id="chart-seq-summary"></div>
+        </div>
+        <div class="panel">
+          <h2>KMeans states vs HMM-decoded regimes</h2>
+          <div class="body" id="chart-state-rep"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Paired statistics vs baseline <span class="hint">bootstrap 95% CI on Macro-F1 delta</span></h2>
+        <div class="body" id="chart-stats"></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="panel">
+          <h2>Variation across groups</h2>
+          <div class="body" id="tbl-variation"></div>
+        </div>
+        <div class="panel">
+          <h2>Leave-one-participant-out per group</h2>
+          <div class="body" id="tbl-lopo"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- INTEGRATION -->
+    <section id="tab-integration" class="tab">
+      <div class="grid-2">
+        <div class="panel">
+          <h2>Schema validation <span class="hint" id="schema-version"></span></h2>
+          <div class="body" id="integration-validation"></div>
+        </div>
+        <div class="panel">
+          <h2>Declared fields</h2>
+          <div class="body" id="schema-fields"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Session-level behavioural output <span class="hint">consumed by multimodal fusion</span></h2>
+        <div class="body" id="tbl-integration-session"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Window-level behavioural stream</h2>
+        <div class="body" id="tbl-integration-window"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    J26-DS-307 · Context-Aware Learner Interaction State Modeling — artefacts are read live from
+    <code>data/</code>; synthetic results are for demonstration only.
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

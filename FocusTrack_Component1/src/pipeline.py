@@ -9,6 +9,8 @@ experiments -> statistical analysis.
 from __future__ import annotations
 
 import json
+import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 import joblib
@@ -23,6 +25,7 @@ from src.config import (
     PROCESSED_DIR,
     RANDOM_STATE,
     RESULTS_DIR,
+    SEQUENCES_DIR,
     ensure_data_dirs,
 )
 from src.context.context_model import (
@@ -148,8 +151,16 @@ def run_pipeline(
     save: bool = True,
     run_ml: bool = True,
     run_hmm: bool = True,
+    artifacts_root: Path | None = None,
 ) -> dict:
-    """Execute the full component pipeline and optionally persist artifacts."""
+    """Execute the full component pipeline and optionally persist artifacts.
+
+    ``artifacts_root`` redirects every written artifact under one directory
+    (``processed/``, ``features/``, ``sequences/``, ``results/``, ``models/``),
+    which lets several data sources keep their results side by side. ``None``
+    keeps the default layout under ``data/``.
+    """
+    started = time.monotonic()
     ensure_data_dirs()
     raw = raw if raw is not None else load_raw()
     prepared = prepare_features(
@@ -254,80 +265,132 @@ def run_pipeline(
         "summary": summary,
     }
 
+    bundle["run_params"] = {
+        "window_seconds": window_seconds,
+        "n_states": n_states,
+        "state_method": state_method,
+        "n_hidden": n_hidden,
+        "run_ml": run_ml,
+        "run_hmm": run_hmm,
+        "events": int(len(prepared["events"])),
+        "windows": int(len(features)),
+        "sessions": int(len(dataset)),
+        "labelled_sessions": int(dataset["concentration_label"].notna().sum())
+        if "concentration_label" in dataset.columns
+        else 0,
+    }
+    bundle["duration_seconds"] = round(time.monotonic() - started, 1)
+
     if save:
-        bundle["artifacts"] = save_artifacts(bundle)
+        bundle["artifacts"] = save_artifacts(bundle, artifacts_root)
     return bundle
 
 
-def save_artifacts(bundle: dict) -> dict[str, Path]:
+def artifact_dirs(root: Path | None = None) -> dict[str, Path]:
+    """Directory layout for one data source's artifacts."""
+    if root is None:
+        return {
+            "processed": PROCESSED_DIR,
+            "features": FEATURES_DIR,
+            "sequences": SEQUENCES_DIR,
+            "results": RESULTS_DIR,
+            "models": MODELS_DIR,
+        }
+    root = Path(root)
+    return {name: root / name for name in ("processed", "features", "sequences", "results", "models")}
+
+
+def save_artifacts(bundle: dict, root: Path | None = None) -> dict[str, Path]:
+    dirs = artifact_dirs(root)
+    for directory in dirs.values():
+        directory.mkdir(parents=True, exist_ok=True)
+    results_dir = dirs["results"]
     written: dict[str, Path] = {}
 
-    written["events"] = _write_csv(bundle["events"], PROCESSED_DIR / "events.csv")
-    written["features"] = _write_csv(bundle["features"], FEATURES_DIR / "features.csv")
-    written["state_profiles"] = _write_csv(bundle["state_profiles"], FEATURES_DIR / "state_profiles.csv")
-    written["session_dataset"] = _write_csv(bundle["dataset"], FEATURES_DIR / "session_dataset.csv")
+    written["events"] = _write_csv(bundle["events"], dirs["processed"] / "events.csv")
+    written["features"] = _write_csv(bundle["features"], dirs["features"] / "features.csv")
+    written["state_profiles"] = _write_csv(bundle["state_profiles"], dirs["features"] / "state_profiles.csv")
+    written["session_dataset"] = _write_csv(bundle["dataset"], dirs["features"] / "session_dataset.csv")
     written["transition_probabilities"] = _write_csv(
-        bundle["transition_probabilities"], RESULTS_DIR / "transition_probabilities.csv"
+        bundle["transition_probabilities"], results_dir / "transition_probabilities.csv"
     )
     written["transitions_by_context"] = _write_csv(
-        bundle["transitions_by_context"], RESULTS_DIR / "transitions_by_context.csv"
+        bundle["transitions_by_context"], results_dir / "transitions_by_context.csv"
     )
     written["session_transitions"] = _write_csv(
-        bundle["session_transitions"], RESULTS_DIR / "session_transitions.csv"
+        bundle["session_transitions"], results_dir / "session_transitions.csv"
     )
     written["context_analysis"] = _write_csv(
-        bundle["context_analysis"], RESULTS_DIR / "context_effect_analysis.csv"
+        bundle["context_analysis"], results_dir / "context_effect_analysis.csv"
     )
     written["context_agreement"] = _write_csv(
-        bundle["context_agreement"], RESULTS_DIR / "context_state_agreement.csv"
+        bundle["context_agreement"], results_dir / "context_state_agreement.csv"
     )
     written["hmm_session_features"] = _write_csv(
-        bundle["hmm_session_features"], RESULTS_DIR / "hmm_session_features.csv"
+        bundle["hmm_session_features"], results_dir / "hmm_session_features.csv"
     )
     written["hmm_transitions"] = _write_csv(
-        bundle["hmm_transitions"], RESULTS_DIR / "hmm_hidden_transitions.csv"
+        bundle["hmm_transitions"], results_dir / "hmm_hidden_transitions.csv"
     )
 
-    written.update(save_sequences(bundle["sequences"]))
+    written.update(save_sequences(bundle["sequences"], target=dirs["sequences"]))
 
     if bundle.get("state_model") is not None:
-        joblib.dump(bundle["state_model"], MODELS_DIR / "state_model.joblib")
+        joblib.dump(bundle["state_model"], dirs["models"] / "state_model.joblib")
         if bundle.get("scaler") is not None:
-            joblib.dump(bundle["scaler"], MODELS_DIR / "state_scaler.joblib")
+            joblib.dump(bundle["scaler"], dirs["models"] / "state_scaler.joblib")
     if bundle.get("hmm_model") is not None:
-        joblib.dump(bundle["hmm_model"], MODELS_DIR / "hmm_model.joblib")
+        joblib.dump(bundle["hmm_model"], dirs["models"] / "hmm_model.joblib")
 
-    with (RESULTS_DIR / "state_quality.json").open("w", encoding="utf-8") as handle:
+    with (results_dir / "state_quality.json").open("w", encoding="utf-8") as handle:
         json.dump(bundle["cluster_quality"], handle, indent=2)
+    written["state_quality"] = results_dir / "state_quality.json"
 
     if not bundle["results"].empty:
-        written["experiments"] = save_results(bundle["results"], "experiments")
-        written["experiment_summary"] = save_results(bundle["summary"], "experiment_summary")
+        written["experiments"] = save_results(bundle["results"], "experiments", results_dir)
+        written["experiment_summary"] = save_results(bundle["summary"], "experiment_summary", results_dir)
     if not bundle["hmm_results"].empty:
         written["sequential_experiments"] = save_results(
-            bundle["hmm_results"], "sequential_experiments"
+            bundle["hmm_results"], "sequential_experiments", results_dir
         )
-        written["sequential_summary"] = save_results(bundle["hmm_summary"], "sequential_summary")
+        written["sequential_summary"] = save_results(
+            bundle["hmm_summary"], "sequential_summary", results_dir
+        )
     if not bundle["state_results"].empty:
         written["state_representation_experiments"] = save_results(
-            bundle["state_results"], "state_representation_experiments"
+            bundle["state_results"], "state_representation_experiments", results_dir
         )
         written["state_representation_summary"] = save_results(
-            bundle["state_summary"], "state_representation_summary"
+            bundle["state_summary"], "state_representation_summary", results_dir
         )
     if not bundle["statistics"].empty:
-        written["statistics"] = save_results(bundle["statistics"], "statistics_comparison")
-    if not bundle["variation"].empty:
-        written["variation"] = save_results(bundle["variation"], "statistics_variation")
-        written["participant_variation"] = save_results(
-            bundle["participant_variation"], "participant_variation"
+        written["statistics"] = save_results(
+            bundle["statistics"], "statistics_comparison", results_dir
         )
-        written["context_variation"] = save_results(bundle["context_variation"], "context_variation")
+    if not bundle["variation"].empty:
+        written["variation"] = save_results(bundle["variation"], "statistics_variation", results_dir)
+        written["participant_variation"] = save_results(
+            bundle["participant_variation"], "participant_variation", results_dir
+        )
+        written["context_variation"] = save_results(
+            bundle["context_variation"], "context_variation", results_dir
+        )
 
-    integration = save_outputs(bundle["outputs"])
+    integration = save_outputs(bundle["outputs"], target=results_dir / "integration")
     written.update(integration)
-    with (RESULTS_DIR / "integration_validation.json").open("w", encoding="utf-8") as handle:
+    with (results_dir / "integration_validation.json").open("w", encoding="utf-8") as handle:
         json.dump(bundle["integration_validation"], handle, indent=2)
+    written["integration_validation"] = results_dir / "integration_validation.json"
+
+    manifest = {
+        "finished_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "duration_seconds": bundle.get("duration_seconds"),
+        "params": bundle.get("run_params", {}),
+        "cluster_quality": bundle.get("cluster_quality"),
+        "integration_schema_version": INTEGRATION_SCHEMA_VERSION,
+    }
+    with (results_dir / "run_manifest.json").open("w", encoding="utf-8") as handle:
+        json.dump(manifest, handle, indent=2)
     return written
 
 
