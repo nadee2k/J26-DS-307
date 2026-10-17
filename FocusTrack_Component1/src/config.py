@@ -22,7 +22,14 @@ RESULTS_DIR = DATA_DIR / "results"
 MODELS_DIR = ROOT / "models"
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
-SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY", "")
+# Supabase renamed the anon key to "publishable key"; accept both spellings so a
+# .env copied from the dashboard works either way.
+SUPABASE_ANON_KEY = (
+    os.getenv("SUPABASE_ANON_KEY", "")
+    or os.getenv("SUPABASE_PUBLISHABLE_KEY", "")
+    or os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    or os.getenv("SUPABASE_SECRET_KEY", "")
+)
 
 PAGE_SIZE = 1000
 RANDOM_STATE = 42
