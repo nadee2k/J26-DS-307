@@ -33,7 +33,10 @@ from src.context.context_model import (
 )
 from src.database.data_loader import load_raw
 from src.evaluation.experiments import run_experiments, save_results, summarise
-from src.evaluation.sequential_experiments import evaluate_hmm_augmentation
+from src.evaluation.sequential_experiments import (
+    evaluate_hmm_augmentation,
+    evaluate_hmm_state_representation,
+)
 from src.evaluation.statistics import (
     compare_representations,
     leave_one_participant_out_predictions,
@@ -41,6 +44,14 @@ from src.evaluation.statistics import (
     summarise_variation,
 )
 from src.features.feature_builder import build_window_features
+from src.integration.export import (
+    INTEGRATION_SCHEMA_VERSION,
+    SESSION_OUTPUT_SCHEMA,
+    WINDOW_OUTPUT_SCHEMA,
+    build_outputs,
+    save_outputs,
+    validate_output,
+)
 from src.models.dataset import build_session_dataset, select_features
 from src.models.sequential import (
     fit_discrete_hmm,
@@ -136,6 +147,7 @@ def run_pipeline(
     n_hidden: int = DEFAULT_HMM_HIDDEN,
     save: bool = True,
     run_ml: bool = True,
+    run_hmm: bool = True,
 ) -> dict:
     """Execute the full component pipeline and optionally persist artifacts."""
     ensure_data_dirs()
@@ -171,29 +183,43 @@ def run_pipeline(
     results = pd.DataFrame()
     summary = pd.DataFrame()
     hmm_results = pd.DataFrame()
+    state_results = pd.DataFrame()
     statistics = pd.DataFrame()
     variation = pd.DataFrame()
     participant_variation = pd.DataFrame()
     context_variation = pd.DataFrame()
+    predictions = pd.DataFrame()
 
     if run_ml and not dataset.empty:
         results = run_experiments(dataset, feature_groups)
         summary = summarise(results)
-        if proposed_columns and sequence_map:
+        if proposed_columns and sequence_map and run_hmm:
             hmm_results = evaluate_hmm_augmentation(
                 dataset, sequence_map, proposed_columns, n_hidden=n_hidden
             )
+            state_results = evaluate_hmm_state_representation(
+                dataset, features, feature_groups, sequence_map, n_hidden=n_hidden
+            )
         statistics = compare_representations(results)
-        lopo = leave_one_participant_out_predictions(dataset, proposed_columns, model_name=PRIMARY_MODEL)
-        if not lopo.empty:
-            participant_variation = metric_by_group(lopo, "participant_id")
-            context_variation = metric_by_group(lopo, "context")
+        predictions = leave_one_participant_out_predictions(
+            dataset, proposed_columns, model_name=PRIMARY_MODEL
+        )
+        if not predictions.empty:
+            participant_variation = metric_by_group(predictions, "participant_id")
+            context_variation = metric_by_group(predictions, "context")
             variation = pd.DataFrame(
                 [
                     {"group": "participant", **summarise_variation(participant_variation)},
                     {"group": "context", **summarise_variation(context_variation)},
                 ]
             )
+
+    outputs = build_outputs(features, dataset, predictions=predictions if not predictions.empty else None)
+    integration_validation = {
+        "schema_version": INTEGRATION_SCHEMA_VERSION,
+        "window": validate_output(outputs["behavioural_output_window"], WINDOW_OUTPUT_SCHEMA),
+        "session": validate_output(outputs["behavioural_output_session"], SESSION_OUTPUT_SCHEMA),
+    }
 
     bundle = {
         **prepared,
@@ -215,10 +241,15 @@ def run_pipeline(
         "hmm_transitions": hmm_transitions,
         "hmm_results": hmm_results,
         "hmm_summary": summarise(hmm_results) if not hmm_results.empty else pd.DataFrame(),
+        "state_results": state_results,
+        "state_summary": summarise(state_results) if not state_results.empty else pd.DataFrame(),
+        "predictions": predictions,
         "statistics": statistics,
         "variation": variation,
         "participant_variation": participant_variation,
         "context_variation": context_variation,
+        "outputs": outputs,
+        "integration_validation": integration_validation,
         "results": results,
         "summary": summary,
     }
@@ -277,6 +308,13 @@ def save_artifacts(bundle: dict) -> dict[str, Path]:
             bundle["hmm_results"], "sequential_experiments"
         )
         written["sequential_summary"] = save_results(bundle["hmm_summary"], "sequential_summary")
+    if not bundle["state_results"].empty:
+        written["state_representation_experiments"] = save_results(
+            bundle["state_results"], "state_representation_experiments"
+        )
+        written["state_representation_summary"] = save_results(
+            bundle["state_summary"], "state_representation_summary"
+        )
     if not bundle["statistics"].empty:
         written["statistics"] = save_results(bundle["statistics"], "statistics_comparison")
     if not bundle["variation"].empty:
@@ -285,6 +323,11 @@ def save_artifacts(bundle: dict) -> dict[str, Path]:
             bundle["participant_variation"], "participant_variation"
         )
         written["context_variation"] = save_results(bundle["context_variation"], "context_variation")
+
+    integration = save_outputs(bundle["outputs"])
+    written.update(integration)
+    with (RESULTS_DIR / "integration_validation.json").open("w", encoding="utf-8") as handle:
+        json.dump(bundle["integration_validation"], handle, indent=2)
     return written
 
 

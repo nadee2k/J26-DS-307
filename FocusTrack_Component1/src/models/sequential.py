@@ -218,6 +218,34 @@ def state_sequences_by_session(
     return sequences
 
 
+def decode_states_for_features(
+    features: pd.DataFrame,
+    model: DiscreteHMM,
+    state_col: str = STATE_COL,
+    output_col: str = "hmm_state",
+) -> pd.DataFrame:
+    """Decode each session's observed-state sequence into hidden regimes.
+
+    Returns a copy of ``features`` with ``output_col`` holding the decoded
+    hidden state for each window (``-1`` where no observed state is available).
+    """
+    out = features.copy()
+    out[output_col] = -1
+    if features.empty or state_col not in features.columns:
+        return out
+
+    order = [c for c in ("participant_id", "session_id", "window_index") if c in out.columns]
+    for _, group in out.groupby(["participant_id", "session_id"], dropna=False, sort=False):
+        ordered = group.sort_values("window_index") if "window_index" in group.columns else group
+        values = pd.to_numeric(ordered[state_col], errors="coerce")
+        valid = values.notna().to_numpy()
+        if not valid.any():
+            continue
+        hidden = model.decode(values[valid].astype(int).to_numpy())
+        out.loc[ordered.index[valid], output_col] = hidden
+    return out
+
+
 def session_hmm_features(
     sequences: dict[tuple, np.ndarray],
     model: DiscreteHMM,

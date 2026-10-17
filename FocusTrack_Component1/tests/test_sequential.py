@@ -93,3 +93,24 @@ def test_evaluate_hmm_augmentation_smoke(prepared):
     )
     assert not results.empty
     assert set(results["representation"]) == {"proposed", "proposed_hmm"}
+
+
+def test_evaluate_hmm_state_representation_smoke(prepared):
+    from src.evaluation.sequential_experiments import evaluate_hmm_state_representation
+
+    dataset, groups = build_session_dataset(prepared["features"], prepared["tables"]["concentration_logs"])
+    dataset = dataset.dropna(subset=["concentration_label"])
+    results = evaluate_hmm_state_representation(
+        dataset,
+        prepared["features"],
+        groups,
+        state_sequences_by_session(prepared["features"]),
+        model_names=["random_forest"],
+        n_hidden=2,
+        hmm_restarts=1,
+        hmm_iter=20,
+        split_scheme="participant",
+        n_splits=3,
+    )
+    assert not results.empty
+    assert set(results["representation"]) == {"kmeans_states", "hmm_states"}

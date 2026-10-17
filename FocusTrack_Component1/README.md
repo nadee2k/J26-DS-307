@@ -38,7 +38,8 @@ and an ablation analysis (proposal sections 3.9–3.11).
 | `src/transitions/` | Transition features, run-length view, transition matrices (SO4) |
 | `src/context/` | Context codes, context features and context-effect analysis (SO5) |
 | `src/models/` | Candidate models, the session-level dataset builder, and the discrete HMM |
-| `src/evaluation/` | Splits, metrics, ablation, sequential (HMM) experiments, statistics (SO6) |
+| `src/evaluation/` | Splits, metrics, ablation, sequential (HMM) + state-representation experiments, statistics (SO6) |
+| `src/integration/` | Behavioural output contract for multimodal fusion (window + session schemas, validation) |
 | `src/pipeline.py` | End-to-end orchestration |
 | `src/simulation.py` | Synthetic data so the pipeline runs before real data exists |
 | `src/visualization/` | Reusable plotting helpers |
@@ -73,6 +74,9 @@ Artifacts are written to:
 - `data/features/features.csv`, `state_profiles.csv`, `session_dataset.csv`
 - `data/sequences/state_sequences.csv`, `window_sequences.csv`
 - `data/results/…` (transition matrices, context analysis, HMM analysis, experiment and statistical results)
+- `data/results/integration/behavioural_output_window.csv`,
+  `data/results/integration/behavioural_output_session.csv`,
+  `data/results/integration_validation.json`
 - `models/state_model.joblib`, `state_scaler.joblib`, `hmm_model.joblib`
 
 Then open `notebooks/01_exploratory_analysis.ipynb`.
@@ -118,6 +122,21 @@ pytest -q
   intervals, Wilcoxon / paired t-test p-values, Cohen's d_z and Cliff's delta,
   plus between-participant and between-context variation from leave-one-
   participant-out predictions.
+- **State representation comparison**
+  (`evaluate_hmm_state_representation` in
+  `src/evaluation/sequential_experiments.py`): the same models are trained once
+  with the KMeans interaction states and once with HMM-decoded hidden regimes,
+  where the HMM is fitted per fold on training sessions only and the state,
+  transition and context features are rebuilt from the decoded regimes.
+  Results land in `state_representation_experiments.csv`.
+- **Integration contract** (`src/integration/export.py`): the two artefacts other
+  FocusTrack components consume — a window-level behavioural stream and a
+  session-level summary (dominant state, state shares, transition,
+  interruption/recovery measures, the concentration-related prediction and a
+  plain-language summary). The schemas are versioned
+  (`INTEGRATION_SCHEMA_VERSION`) and validated at the end of every run; a
+  `missing columns` violation is printed as
+  `Integration output schema validation: …`.
 - The discovered states are data-driven and are intentionally **not** named
   "focused" / "distracted". Interruption and recovery are defined structurally
   (a state change; an `A -> B -> A` return).
@@ -126,5 +145,7 @@ pytest -q
   label, so there is no target leakage.
 - Real data collection follows the FocusTrack protocol; `src/simulation.py`
   is a testing aid, not a substitute for participant data.
-- Runtime: the HMM augmentation and leave-one-participant-out analysis are the
-  slowest stages. Use `--no-ml` to run only the descriptive pipeline.
+- Runtime: the HMM augmentation, the state-representation comparison and the
+  leave-one-participant-out analysis are the slowest stages. Use `--no-hmm` to
+  skip the HMM-based experiments, or `--no-ml` to run only the descriptive
+  pipeline.

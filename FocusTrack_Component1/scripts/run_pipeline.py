@@ -44,6 +44,7 @@ def main() -> int:
     )
     parser.add_argument("--hidden", type=int, default=3, help="Number of hidden HMM regimes.")
     parser.add_argument("--no-ml", action="store_true", help="Skip the baseline/proposed experiments.")
+    parser.add_argument("--no-hmm", action="store_true", help="Skip the HMM-based experiments.")
     parser.add_argument("--no-save", action="store_true", help="Do not write artifacts to data/.")
     args = parser.parse_args()
 
@@ -70,6 +71,7 @@ def main() -> int:
         n_hidden=args.hidden,
         save=not args.no_save,
         run_ml=not args.no_ml,
+        run_hmm=not args.no_hmm,
     )
 
     features = bundle["features"]
@@ -103,10 +105,25 @@ def main() -> int:
             ].to_string(index=False)
         )
 
+    state_summary = bundle.get("state_summary")
+    if state_summary is not None and not state_summary.empty:
+        print("\nKMeans states vs HMM-decoded regimes (mean Macro-F1 across folds):")
+        print(
+            state_summary[
+                ["representation", "model", "split", "macro_f1_mean", "macro_f1_std"]
+            ].to_string(index=False)
+        )
+
     variation = bundle.get("variation")
     if variation is not None and not variation.empty:
         print("\nVariation across groups:")
         print(variation.to_string(index=False))
+
+    validation = bundle.get("integration_validation")
+    if validation:
+        problems = list(validation.get("window", [])) + list(validation.get("session", []))
+        status = "OK" if not problems else "; ".join(problems)
+        print(f"\nIntegration output schema validation: {status}")
 
     if not args.no_save:
         print("\nArtifacts written under data/ (processed, features, sequences, results).")
