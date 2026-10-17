@@ -2,7 +2,8 @@
 
 Behavioural logs -> cleaning -> synchronisation -> windowing -> features ->
 interaction states -> state transitions -> context-aware representation ->
-session dataset -> baseline / proposed / ablation experiments.
+sequences -> HMM analysis -> session dataset -> baseline / proposed / ablation
+experiments -> statistical analysis.
 """
 
 from __future__ import annotations
@@ -20,6 +21,7 @@ from src.config import (
     FEATURES_DIR,
     MODELS_DIR,
     PROCESSED_DIR,
+    RANDOM_STATE,
     RESULTS_DIR,
     ensure_data_dirs,
 )
@@ -31,8 +33,20 @@ from src.context.context_model import (
 )
 from src.database.data_loader import load_raw
 from src.evaluation.experiments import run_experiments, save_results, summarise
+from src.evaluation.sequential_experiments import evaluate_hmm_augmentation
+from src.evaluation.statistics import (
+    compare_representations,
+    leave_one_participant_out_predictions,
+    metric_by_group,
+    summarise_variation,
+)
 from src.features.feature_builder import build_window_features
-from src.models.dataset import build_session_dataset
+from src.models.dataset import build_session_dataset, select_features
+from src.models.sequential import (
+    fit_discrete_hmm,
+    session_hmm_features,
+    state_sequences_by_session,
+)
 from src.preprocessing.cleaner import (
     clean_behavior_logs,
     clean_concentration_logs,
@@ -49,6 +63,9 @@ from src.transitions.transition_model import (
     session_transition_summary,
     transition_probabilities,
 )
+
+PRIMARY_MODEL = "random_forest"
+DEFAULT_HMM_HIDDEN = 3
 
 
 def _clean_tables(raw: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
@@ -90,12 +107,33 @@ def prepare_features(
     }
 
 
+def _hmm_analysis(
+    features: pd.DataFrame,
+    n_states: int,
+    n_hidden: int,
+) -> tuple[object | None, pd.DataFrame, pd.DataFrame]:
+    """Descriptive HMM over the full dataset (analysis only, never model input)."""
+    sequences = state_sequences_by_session(features)
+    if not sequences:
+        return None, pd.DataFrame(), pd.DataFrame()
+    model = fit_discrete_hmm(
+        list(sequences.values()),
+        n_hidden=max(2, min(n_hidden, max(n_states, 2))),
+        n_symbols=n_states,
+        seed=RANDOM_STATE,
+    )
+    session_features = session_hmm_features(sequences, model)
+    transitions = model.transition_frame().reset_index(names="from_hidden")
+    return model, session_features, transitions
+
+
 def run_pipeline(
     raw: dict[str, pd.DataFrame] | None = None,
     *,
     window_seconds: int = DEFAULT_WINDOW_SECONDS,
     n_states: int = DEFAULT_N_STATES,
     state_method: str = DEFAULT_STATE_METHOD,
+    n_hidden: int = DEFAULT_HMM_HIDDEN,
     save: bool = True,
     run_ml: bool = True,
 ) -> dict:
@@ -108,7 +146,11 @@ def run_pipeline(
     features = prepared["features"]
 
     sequences = build_sequences(features)
+    sequence_map = state_sequences_by_session(features)
     dataset, feature_groups = build_session_dataset(features, prepared["tables"]["concentration_logs"])
+    proposed_columns = select_features(
+        feature_groups, ["baseline", "temporal", "state", "transition", "context"]
+    )
 
     state_profiles = describe_states(features)
     quality = cluster_quality(features)
@@ -119,17 +161,47 @@ def run_pipeline(
     context_agreement = context_state_agreement(features)
     context_distribution = context_state_distribution(features)
 
+    hmm_model, hmm_session_features_frame, hmm_transitions = _hmm_analysis(
+        features, n_states=max(int(pd.to_numeric(features.get("interaction_state"), errors="coerce").max()) + 1, 2)
+        if "interaction_state" in features.columns
+        else max(n_states, 2),
+        n_hidden=n_hidden,
+    )
+
     results = pd.DataFrame()
     summary = pd.DataFrame()
+    hmm_results = pd.DataFrame()
+    statistics = pd.DataFrame()
+    variation = pd.DataFrame()
+    participant_variation = pd.DataFrame()
+    context_variation = pd.DataFrame()
+
     if run_ml and not dataset.empty:
         results = run_experiments(dataset, feature_groups)
         summary = summarise(results)
+        if proposed_columns and sequence_map:
+            hmm_results = evaluate_hmm_augmentation(
+                dataset, sequence_map, proposed_columns, n_hidden=n_hidden
+            )
+        statistics = compare_representations(results)
+        lopo = leave_one_participant_out_predictions(dataset, proposed_columns, model_name=PRIMARY_MODEL)
+        if not lopo.empty:
+            participant_variation = metric_by_group(lopo, "participant_id")
+            context_variation = metric_by_group(lopo, "context")
+            variation = pd.DataFrame(
+                [
+                    {"group": "participant", **summarise_variation(participant_variation)},
+                    {"group": "context", **summarise_variation(context_variation)},
+                ]
+            )
 
     bundle = {
         **prepared,
         "sequences": sequences,
+        "sequence_map": sequence_map,
         "dataset": dataset,
         "feature_groups": feature_groups,
+        "proposed_columns": proposed_columns,
         "state_profiles": state_profiles,
         "cluster_quality": quality,
         "transition_probabilities": transition_probs,
@@ -138,6 +210,15 @@ def run_pipeline(
         "context_analysis": context_analysis,
         "context_agreement": context_agreement,
         "context_distribution": context_distribution,
+        "hmm_model": hmm_model,
+        "hmm_session_features": hmm_session_features_frame,
+        "hmm_transitions": hmm_transitions,
+        "hmm_results": hmm_results,
+        "hmm_summary": summarise(hmm_results) if not hmm_results.empty else pd.DataFrame(),
+        "statistics": statistics,
+        "variation": variation,
+        "participant_variation": participant_variation,
+        "context_variation": context_variation,
         "results": results,
         "summary": summary,
     }
@@ -169,6 +250,12 @@ def save_artifacts(bundle: dict) -> dict[str, Path]:
     written["context_agreement"] = _write_csv(
         bundle["context_agreement"], RESULTS_DIR / "context_state_agreement.csv"
     )
+    written["hmm_session_features"] = _write_csv(
+        bundle["hmm_session_features"], RESULTS_DIR / "hmm_session_features.csv"
+    )
+    written["hmm_transitions"] = _write_csv(
+        bundle["hmm_transitions"], RESULTS_DIR / "hmm_hidden_transitions.csv"
+    )
 
     written.update(save_sequences(bundle["sequences"]))
 
@@ -176,6 +263,8 @@ def save_artifacts(bundle: dict) -> dict[str, Path]:
         joblib.dump(bundle["state_model"], MODELS_DIR / "state_model.joblib")
         if bundle.get("scaler") is not None:
             joblib.dump(bundle["scaler"], MODELS_DIR / "state_scaler.joblib")
+    if bundle.get("hmm_model") is not None:
+        joblib.dump(bundle["hmm_model"], MODELS_DIR / "hmm_model.joblib")
 
     with (RESULTS_DIR / "state_quality.json").open("w", encoding="utf-8") as handle:
         json.dump(bundle["cluster_quality"], handle, indent=2)
@@ -183,6 +272,19 @@ def save_artifacts(bundle: dict) -> dict[str, Path]:
     if not bundle["results"].empty:
         written["experiments"] = save_results(bundle["results"], "experiments")
         written["experiment_summary"] = save_results(bundle["summary"], "experiment_summary")
+    if not bundle["hmm_results"].empty:
+        written["sequential_experiments"] = save_results(
+            bundle["hmm_results"], "sequential_experiments"
+        )
+        written["sequential_summary"] = save_results(bundle["hmm_summary"], "sequential_summary")
+    if not bundle["statistics"].empty:
+        written["statistics"] = save_results(bundle["statistics"], "statistics_comparison")
+    if not bundle["variation"].empty:
+        written["variation"] = save_results(bundle["variation"], "statistics_variation")
+        written["participant_variation"] = save_results(
+            bundle["participant_variation"], "participant_variation"
+        )
+        written["context_variation"] = save_results(bundle["context_variation"], "context_variation")
     return written
 
 

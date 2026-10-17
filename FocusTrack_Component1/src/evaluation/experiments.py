@@ -33,7 +33,7 @@ REPRESENTATIONS: dict[str, list[str]] = {
 SPLIT_SCHEMES = ("participant", "cross_context")
 
 
-def _folds(
+def make_folds(
     dataset: pd.DataFrame,
     label_col: str,
     split_scheme: str,
@@ -66,7 +66,7 @@ def evaluate_representation(
 
     X = dataset[columns].apply(pd.to_numeric, errors="coerce").fillna(0.0)
     y = dataset[label_col].reset_index(drop=True)
-    folds = _folds(dataset.reset_index(drop=True), label_col, split_scheme, n_splits, seed)
+    folds = make_folds(dataset.reset_index(drop=True), label_col, split_scheme, n_splits, seed)
     if not folds:
         return pd.DataFrame()
 

@@ -42,6 +42,7 @@ def main() -> int:
     parser.add_argument(
         "--method", choices=["kmeans", "gmm"], default=DEFAULT_STATE_METHOD, help="State discovery method."
     )
+    parser.add_argument("--hidden", type=int, default=3, help="Number of hidden HMM regimes.")
     parser.add_argument("--no-ml", action="store_true", help="Skip the baseline/proposed experiments.")
     parser.add_argument("--no-save", action="store_true", help="Do not write artifacts to data/.")
     args = parser.parse_args()
@@ -66,6 +67,7 @@ def main() -> int:
         window_seconds=args.window,
         n_states=args.states,
         state_method=args.method,
+        n_hidden=args.hidden,
         save=not args.no_save,
         run_ml=not args.no_ml,
     )
@@ -82,6 +84,29 @@ def main() -> int:
     if not summary.empty:
         print("\nRepresentation comparison (mean Macro-F1 across folds):")
         print(summary[["representation", "model", "split", "macro_f1_mean", "macro_f1_std"]].to_string(index=False))
+
+    hmm_summary = bundle.get("hmm_summary")
+    if hmm_summary is not None and not hmm_summary.empty:
+        print("\nSequential (HMM) augmentation (mean Macro-F1 across folds):")
+        print(
+            hmm_summary[["representation", "model", "split", "macro_f1_mean", "macro_f1_std"]].to_string(
+                index=False
+            )
+        )
+
+    statistics = bundle.get("statistics")
+    if statistics is not None and not statistics.empty:
+        print("\nPaired comparison vs baseline (positive delta favours the target):")
+        print(
+            statistics[
+                ["target", "model", "mean_reference", "mean_target", "mean_delta", "ci_low", "ci_high", "p_wilcoxon"]
+            ].to_string(index=False)
+        )
+
+    variation = bundle.get("variation")
+    if variation is not None and not variation.empty:
+        print("\nVariation across groups:")
+        print(variation.to_string(index=False))
 
     if not args.no_save:
         print("\nArtifacts written under data/ (processed, features, sequences, results).")

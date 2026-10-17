@@ -37,8 +37,8 @@ and an ablation analysis (proposal sections 3.9–3.11).
 | `src/states/` | Interaction-state discovery (KMeans / GMM), profiling, validation |
 | `src/transitions/` | Transition features, run-length view, transition matrices (SO4) |
 | `src/context/` | Context codes, context features and context-effect analysis (SO5) |
-| `src/models/` | Candidate models and the session-level dataset builder |
-| `src/evaluation/` | Splits, metrics, ablation and the experiment runner (SO6) |
+| `src/models/` | Candidate models, the session-level dataset builder, and the discrete HMM |
+| `src/evaluation/` | Splits, metrics, ablation, sequential (HMM) experiments, statistics (SO6) |
 | `src/pipeline.py` | End-to-end orchestration |
 | `src/simulation.py` | Synthetic data so the pipeline runs before real data exists |
 | `src/visualization/` | Reusable plotting helpers |
@@ -72,8 +72,8 @@ Artifacts are written to:
 - `data/processed/events.csv`
 - `data/features/features.csv`, `state_profiles.csv`, `session_dataset.csv`
 - `data/sequences/state_sequences.csv`, `window_sequences.csv`
-- `data/results/…` (transition matrices, context analysis, experiment results)
-- `models/state_model.joblib`, `models/state_scaler.joblib`
+- `data/results/…` (transition matrices, context analysis, HMM analysis, experiment and statistical results)
+- `models/state_model.joblib`, `state_scaler.joblib`, `hmm_model.joblib`
 
 Then open `notebooks/01_exploratory_analysis.ipynb`.
 
@@ -106,13 +106,25 @@ pytest -q
 
 - The pipeline is complete and runs end-to-end on synthetic data; the
   baseline / proposed / ablation comparison produces a results table.
+- **Sequential modelling:** a self-contained categorical Hidden Markov Model
+  (`src/models/sequential.py`, NumPy/SciPy Baum-Welch + Viterbi, no extra
+  dependency) is fitted to the interaction-state sequences. `--hidden N` sets
+  the number of hidden regimes. In the sequential experiment the HMM is refitted
+  *inside each fold on training sessions only*, so no information leaks across
+  the split; the resulting features test whether sequence structure adds value
+  beyond the state/transition features.
+- **Statistical analysis** (`src/evaluation/statistics.py`): paired
+  fold-level comparisons against the baseline with bootstrap confidence
+  intervals, Wilcoxon / paired t-test p-values, Cohen's d_z and Cliff's delta,
+  plus between-participant and between-context variation from leave-one-
+  participant-out predictions.
 - The discovered states are data-driven and are intentionally **not** named
   "focused" / "distracted". Interruption and recovery are defined structurally
   (a state change; an `A -> B -> A` return).
 - Context-effect analysis uses the reference label and is descriptive only. The
   model-safe context features (`context_code`, `context × state`) never use the
   label, so there is no target leakage.
-- Sequential modelling (e.g. HMM) can build on `data/sequences/`; the sequence
-  artifacts are produced but no sequential model is implemented yet.
 - Real data collection follows the FocusTrack protocol; `src/simulation.py`
   is a testing aid, not a substitute for participant data.
+- Runtime: the HMM augmentation and leave-one-participant-out analysis are the
+  slowest stages. Use `--no-ml` to run only the descriptive pipeline.
