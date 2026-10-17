@@ -114,3 +114,26 @@ def test_evaluate_hmm_state_representation_smoke(prepared):
     )
     assert not results.empty
     assert set(results["representation"]) == {"kmeans_states", "hmm_states"}
+
+
+def test_log_sum_exp_matches_scipy_reference():
+    """The local `_lse` must agree with scipy.special.logsumexp.
+
+    `_lse` exists only for speed (the Baum-Welch loops call it once per
+    timestep), so its numerics are pinned to the reference implementation.
+    """
+    from scipy.special import logsumexp
+
+    from src.models.sequential import _lse
+
+    rng = np.random.default_rng(3)
+    values = rng.normal(size=(7, 4))
+
+    np.testing.assert_allclose(_lse(values, axis=0), logsumexp(values, axis=0), atol=1e-12)
+    np.testing.assert_allclose(_lse(values, axis=1), logsumexp(values, axis=1), atol=1e-12)
+    assert abs(_lse(values) - logsumexp(values)) < 1e-12
+
+    # Well-separated inputs keep every log-prob finite; the stable branch must
+    # not overflow where a naive log(sum(exp(x))) would.
+    extreme = np.array([[-1000.0, -1001.0], [0.0, -1.0]])
+    np.testing.assert_allclose(_lse(extreme, axis=1), logsumexp(extreme, axis=1), atol=1e-9)
