@@ -60,6 +60,16 @@ def create_app() -> FastAPI:
     def index() -> FileResponse:
         return FileResponse(STATIC_DIR / "index.html")
 
+    @app.get("/health")
+    def health() -> dict[str, Any]:
+        """Liveness probe — polled by local tooling while the UI runs."""
+        status = runner.snapshot()
+        return {
+            "status": "running" if status["running"] else "idle",
+            "stage": status["stage"],
+            "sources": list(SOURCES),
+        }
+
     @app.get("/api/sources")
     def sources() -> list[dict[str, Any]]:
         out = []
