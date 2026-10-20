@@ -38,9 +38,21 @@ def test_artifacts_root_redirects_every_artifact(tmp_path, synthetic_tables):
     assert manifest["duration_seconds"] is not None
 
 
-def test_default_layout_is_used_without_a_root(synthetic_tables):
+def test_default_layout_is_used_without_a_root(tmp_path, monkeypatch, synthetic_tables):
+    """Without an explicit root, artifacts follow the default ``data/`` layout.
+
+    The default directories are redirected to a temporary tree before the run so
+    the test never overwrites the real (git-ignored) ``data/`` artifacts.
+    """
+    import src.pipeline as pipeline
     from src.config import RESULTS_DIR
     from src.pipeline import run_pipeline
+
+    # No root given -> the layout comes straight from src.config.
+    assert pipeline.artifact_dirs()["results"] == RESULTS_DIR
+
+    for name in ("processed", "features", "sequences", "results", "models"):
+        monkeypatch.setattr(pipeline, f"{name.upper()}_DIR", tmp_path / name)
 
     bundle = run_pipeline(
         synthetic_tables,
@@ -50,4 +62,5 @@ def test_default_layout_is_used_without_a_root(synthetic_tables):
         run_ml=False,
         run_hmm=False,
     )
-    assert bundle["artifacts"]["state_quality"] == RESULTS_DIR / "state_quality.json"
+    assert bundle["artifacts"]["state_quality"] == tmp_path / "results" / "state_quality.json"
+    assert (tmp_path / "features" / "features.csv").exists()

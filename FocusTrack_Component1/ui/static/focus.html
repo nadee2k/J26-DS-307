@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FocusTrack · Focus dashboard</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">◔</div>
+      <div>
+        <h1>Focus dashboard <span class="muted">· Component 1</span></h1>
+        <p>How your interaction states evolve across past study sessions</p>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="switch" id="source-switch" role="tablist" aria-label="Data source">
+        <button data-source="real" class="active">Real pilot data</button>
+        <button data-source="synthetic">Synthetic demo</button>
+      </div>
+      <button class="primary" id="refresh">Refresh</button>
+    </div>
+  </header>
+
+  <div class="banner" id="source-note" hidden></div>
+
+  <main>
+    <div class="analysis-bar">
+      <label class="inline">Showing
+        <strong id="scope">—</strong>
+      </label>
+      <span class="hint" id="generated">Loading…</span>
+      <a class="btn" href="/" style="margin-left:auto">← Back to analysis tabs</a>
+    </div>
+
+    <div class="cards" id="kpis"></div>
+
+    <section class="panel">
+      <h2>Focus stability over time <span class="hint">mean consecutive windows in one interaction state — higher is steadier</span></h2>
+      <div class="body"><div id="stability"></div></div>
+    </section>
+
+    <div class="grid-2">
+      <section class="panel">
+        <h2>Interaction-state composition <span class="hint">share of each session's windows per state</span></h2>
+        <div class="body"><div id="composition"></div></div>
+      </section>
+
+      <section class="panel">
+        <h2>Interruptions &amp; recoveries <span class="hint">model-detected breaks in the interaction flow</span></h2>
+        <div class="body"><div id="interruptions"></div></div>
+      </section>
+    </div>
+
+    <div class="grid-2">
+      <section class="panel">
+        <h2>Self-reported focus vs pattern consistency <span class="hint">concentration rating against the model's dominant-state share</span></h2>
+        <div class="body"><div id="concentration"></div></div>
+      </section>
+
+      <section class="panel">
+        <h2>Session timelines <span class="hint">one row per session; each segment is a run of windows in one state</span></h2>
+        <div class="body"><div id="strips"></div></div>
+      </section>
+    </div>
+
+    <section class="panel">
+      <h2>Sessions <span class="hint">the trained models' output per past session</span></h2>
+      <div class="body"><div id="table"></div></div>
+    </section>
+
+    <div id="notes"></div>
+  </main>
+
+  <footer>
+    Read-only view of the trained Component 1 models — interaction states, transitions and the
+    behavioural regime. Uses only behaviour and self-reported concentration; no environment or
+    vision data. <a href="/">Back to the analysis app</a>.
+  </footer>
+
+  <script src="/static/focus.js"></script>
+</body>
+</html>

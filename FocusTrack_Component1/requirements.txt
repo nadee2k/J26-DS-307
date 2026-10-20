@@ -9,6 +9,7 @@ matplotlib>=3.9
 seaborn>=0.13
 joblib>=1.4
 fastapi>=0.115
+python-multipart>=0.0.9
 uvicorn>=0.30
 jupyter>=1.0
 pytest>=8.0

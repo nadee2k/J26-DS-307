@@ -387,6 +387,9 @@ def save_artifacts(bundle: dict, root: Path | None = None) -> dict[str, Path]:
         "duration_seconds": bundle.get("duration_seconds"),
         "params": bundle.get("run_params", {}),
         "cluster_quality": bundle.get("cluster_quality"),
+        # Saved so single-session inference (ui/session_infer.py) can rebuild
+        # the exact feature matrix the trained scaler was fitted on.
+        "state_feature_columns": bundle.get("state_feature_cols"),
         "integration_schema_version": INTEGRATION_SCHEMA_VERSION,
     }
     with (results_dir / "run_manifest.json").open("w", encoding="utf-8") as handle:

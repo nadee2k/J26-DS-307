@@ -16,6 +16,7 @@
       </div>
     </div>
     <div class="topbar-right">
+      <a class="btn" href="/session-demo">Try session demo</a>
       <div class="switch" id="source-switch" role="tablist" aria-label="Data source">
         <button data-source="real" class="active">Real pilot data</button>
         <button data-source="synthetic">Synthetic demo</button>
@@ -32,11 +33,25 @@
     <button data-tab="context">Context modelling <span class="badge">SO5</span></button>
     <button data-tab="evaluation">Evaluation &amp; statistics <span class="badge">SO6</span></button>
     <button data-tab="integration">Integration output <span class="badge">M10</span></button>
+    <button data-tab="labelling">Data labelling <span class="badge">Method</span></button>
+    <button data-tab="session-analyzer">Session Analyzer <span class="badge">NEW</span></button>
+    <a class="tab-link" href="/focus">Focus dashboard <span class="badge">NEW</span></a>
   </nav>
 
   <main>
     <!-- OVERVIEW -->
     <section id="tab-overview" class="tab active">
+      <div class="analysis-bar">
+        <label class="inline">Analysis type
+          <select id="ov-analysis">
+            <option value="states">Interaction states &amp; run (default)</option>
+            <option value="learning-type">Learning type — screen vs non-screen (behaviour-inferred)</option>
+          </select>
+        </label>
+        <span class="hint" id="ov-analysis-hint">What the panels below show for the current source.</span>
+      </div>
+
+      <div id="ov-panel-states">
       <div class="cards" id="ov-cards"></div>
 
       <div class="grid-2">
@@ -83,6 +98,32 @@
             <button type="button" id="run-btn" class="primary">Run pipeline</button>
           </form>
           <pre id="run-log" class="log" hidden></pre>
+        </div>
+      </div>
+      </div>
+
+      <div id="ov-panel-ltype" hidden>
+        <div class="cards" id="lt-cards"></div>
+
+        <div class="grid-2">
+          <div class="panel">
+            <h2>Per-participant decision <span class="hint" id="lt-meta"></span></h2>
+            <div class="body" id="lt-table"></div>
+          </div>
+          <div class="panel">
+            <h2>Screen score per participant <span class="hint">0 = non-screen pole, 1 = screen pole</span></h2>
+            <div class="body" id="lt-score-chart"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Group comparison <span class="hint">mean behaviour per inferred group</span></h2>
+          <div class="body" id="lt-groups"></div>
+        </div>
+
+        <div class="panel">
+          <h2>How the decision is made</h2>
+          <div class="body" id="lt-method"></div>
         </div>
       </div>
     </section>
@@ -220,6 +261,128 @@
         <div class="body" id="tbl-integration-window"></div>
       </div>
     </section>
+
+    <!-- SESSION ANALYZER -->
+    <section id="tab-session-analyzer" class="tab">
+      <div class="grid-2">
+        <div class="panel">
+          <h2>Upload session events <span class="hint">one session, Component 1 output in seconds</span></h2>
+          <div class="body">
+            <form id="sa-form" enctype="multipart/form-data">
+              <label>Events CSV
+                <input type="file" name="file" accept=".csv,text/csv" required />
+              </label>
+              <label>Trained models from
+                <select name="source" id="sa-source"></select>
+              </label>
+              <div class="grid-2">
+                <label>Participant ID <input name="participant_id" placeholder="auto from file if present" /></label>
+                <label>Session ID <input name="session_id" placeholder="leave empty to use the file's column" /></label>
+              </div>
+              <div class="grid-2">
+                <label>Context <input name="context" placeholder="e.g. coding / writing / reading" /></label>
+                <label>Context code <input name="context_code" placeholder="e.g. 1" /></label>
+              </div>
+              <div class="sa-actions">
+                <button type="submit" class="primary" id="sa-analyze">Analyze session</button>
+                <a class="btn" id="sa-sample" href="/api/session/sample">Download sample CSV</a>
+              </div>
+            </form>
+            <div id="sa-ready" class="hint-block"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Session summary <span class="hint" id="sa-meta"></span></h2>
+          <div class="body" id="sa-summary"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>State timeline <span class="hint">one segment per window</span></h2>
+        <div class="body" id="sa-timeline"></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="panel">
+          <h2>State shares</h2>
+          <div class="body" id="sa-shares"></div>
+        </div>
+        <div class="panel">
+          <h2>Transitions (this session)</h2>
+          <div class="body" id="sa-trans"></div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="panel">
+          <h2>Window-level (integration) <span class="hint" id="sa-win-note"></span></h2>
+          <div class="body" id="sa-win-table"></div>
+          <div class="body"><a id="sa-dl-window" class="btn" hidden>Download window CSV</a></div>
+        </div>
+        <div class="panel">
+          <h2>Session-level (integration) <span class="hint">row handed to Component 2</span></h2>
+          <div class="body" id="sa-sess-table"></div>
+          <div class="body"><a id="sa-dl-session" class="btn" hidden>Download session CSV</a></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Behavioural summary</h2>
+        <div class="body"><pre id="sa-bio" class="log"></pre></div>
+      </div>
+    </section>
+
+    <!-- LABELLING -->
+    <section id="tab-labelling" class="tab">
+      <div class="grid-2">
+        <div class="panel">
+          <h2>Labelling approach</h2>
+          <div class="body">
+            <p><strong>Interaction states</strong> are discovered <em>unsupervised</em> from behavioural features only (keyboard, mouse, application, temporal). No concentration ratings are used to form clusters.</p>
+            <p><strong>Session-level ground truth</strong> comes from participants’ self-reported concentration ratings (<code>concentration_logs.level</code>, 1–5), aggregated per session for supervised evaluation.</p>
+            <div id="labelling-rules" class="kv"></div>
+          </div>
+        </div>
+        <div class="panel">
+          <h2>Separation of concerns</h2>
+          <div class="body">
+            <ul>
+              <li><strong>Objective/behavioural:</strong> events → features → unsupervised states → transitions/context (representation)</li>
+              <li><strong>Subjective (aggregated):</strong> self-reports → session mean → rounded label (target for baseline/proposed/ablations)</li>
+            </ul>
+            <p class="hint">The label is not used in state discovery, transition computation, or window feature extraction. It’s only the evaluation target (plus descriptive context-effect summaries).</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Per-session labelling (from session dataset)</h2>
+        <div class="body" id="tbl-labelling-sessions"></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="panel">
+          <h2>Label distribution</h2>
+          <div class="body" id="chart-labelling-dist"></div>
+        </div>
+        <div class="panel">
+          <h2>Concentration logs sample</h2>
+          <div class="body" id="tbl-labelling-conc"></div>
+          <div class="hint">Each row = a self-reported rating at <code>recorded_at</code> for a session.</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Validation splits</h2>
+        <div class="body">
+          <ul>
+            <li><strong>Participant-level:</strong> Grouped CV keeping each <code>participant_id</code> in train or test only (prevents participant leakage).</li>
+            <li><strong>Cross-context:</strong> Leave-one-context-out by learning activity (<code>context/task_type</code>) to test generalisation to unseen activity.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
   </main>
 
   <footer>
@@ -228,5 +391,7 @@
   </footer>
 
   <script src="/static/app.js"></script>
+  <script src="/static/session.js"></script>
+  <script src="/static/labelling.js"></script>
 </body>
 </html>

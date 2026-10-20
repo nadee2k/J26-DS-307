@@ -199,6 +199,41 @@ def overview(source: str) -> dict[str, Any]:
     }
 
 
+def recorded_learning_types(source: str) -> dict[str, str]:
+    """participant_id -> recorded learning_type from the source's students table."""
+    path = source_info(source).get("raw_dir")
+    if path is None:
+        return {}
+    students_path = Path(path) / "students.csv"
+    if not students_path.exists():
+        return {}
+    try:
+        students = pd.read_csv(students_path)
+    except Exception:  # noqa: BLE001 - a broken metadata file must not break the UI
+        return {}
+    id_col = next((c for c in ("participant_id", "id", "student_id") if c in students.columns), None)
+    if id_col is None or "learning_type" not in students.columns:
+        return {}
+    labels = students[[id_col, "learning_type"]].dropna()
+    return {
+        str(row[id_col]): str(row["learning_type"]).strip().lower()
+        for _, row in labels.iterrows()
+    }
+
+
+def learning_type_analysis(source: str) -> dict[str, Any]:
+    """Behaviour-inferred screen/non-screen decision for every participant."""
+    from src.analysis.learning_type import classify_learning_type
+
+    path = table_path(source, "features")
+    frame = pd.read_csv(path) if path is not None and path.exists() else pd.DataFrame()
+    payload = classify_learning_type(frame, recorded=recorded_learning_types(source))
+    payload["source"] = source
+    payload["label"] = source_info(source)["label"]
+    payload["synthetic"] = source_info(source)["synthetic"]
+    return payload
+
+
 def list_artifacts(source: str) -> list[dict[str, Any]]:
     found: list[dict[str, Any]] = []
     for name, (subdir, filename) in TABLES.items():

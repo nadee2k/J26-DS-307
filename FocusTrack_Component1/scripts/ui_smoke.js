@@ -1,17 +1,19 @@
-/* Headless smoke test for ui/static/app.js.
+/* Headless smoke test for the demo UI scripts.
  *
- * Loads the real application script into a Node VM with a minimal DOM stub,
+ * Loads the real application scripts into a Node VM with a minimal DOM stub,
  * points fetch at the running demo server, then invokes every view function
- * for both data sources. Any runtime exception fails the run.
+ * (including views registered by later scripts) for both data sources. Any
+ * runtime exception fails the run.
  *
- *   node /tmp/opencode/ui_smoke.js FocusTrack_Component1/ui/static/app.js
+ *   UI_BASE=http://127.0.0.1:8000 node scripts/ui_smoke.js \
+ *       ui/static/app.js ui/static/session.js
  */
 'use strict';
 
 const fs = require('fs');
 const vm = require('vm');
 
-const scriptPath = process.argv[2];
+const scriptPaths = process.argv.slice(2);
 const base = process.env.UI_BASE || 'http://127.0.0.1:8000';
 
 function makeEl() {
@@ -27,7 +29,7 @@ function makeEl() {
   return el;
 }
 
-const code = `${fs.readFileSync(scriptPath, 'utf8')}
+const code = `${scriptPaths.map((path) => fs.readFileSync(path, 'utf8')).join('\n;')}
 globalThis.__VIEWS = VIEWS;
 globalThis.__setSource = (s) => { state.source = s; };
 globalThis.__state = state;`;
@@ -47,7 +49,9 @@ const ctx = {
 };
 ctx.globalThis = ctx;
 vm.createContext(ctx);
-vm.runInContext(code, ctx, { filename: 'app.js' });
+vm.runInContext(code, ctx, {
+  filename: scriptPaths.map((path) => path.split('/').pop()).join(' + ') || 'ui.js',
+});
 
 (async () => {
   let failures = 0;

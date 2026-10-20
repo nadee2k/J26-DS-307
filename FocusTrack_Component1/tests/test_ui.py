@@ -21,8 +21,16 @@ def test_index_serves_the_app_shell(client):
     assert "tab-integration" in response.text
 
 
+def test_session_demo_serves_a_standalone_page(client):
+    response = client.get("/session-demo")
+    assert response.status_code == 200
+    assert "Start session" in response.text
+    assert "End session" in response.text
+    assert "Load sample session" in response.text
+
+
 def test_static_assets_are_served(client):
-    for asset in ("app.js", "style.css"):
+    for asset in ("app.js", "style.css", "session-demo.js"):
         response = client.get(f"/static/{asset}")
         assert response.status_code == 200
         assert len(response.text) > 500

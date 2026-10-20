@@ -282,7 +282,112 @@ function summaryBars(el, t, labelFn) {
 
 /* ---------------- views ---------------- */
 
+/* Behaviour-inferred screen vs non-screen decision (Overview → analysis type). */
+async function renderLearningType(force) {
+  const el = {
+    cards: $('#lt-cards'), table: $('#lt-table'), groups: $('#lt-groups'),
+    score: $('#lt-score-chart'), method: $('#lt-method'), meta: $('#lt-meta'),
+  };
+  if (!force && el.cards.dataset.loaded) return;
+  const clear = () => {
+    el.table.innerHTML = ''; el.groups.innerHTML = '';
+    el.score.innerHTML = ''; el.method.innerHTML = ''; el.meta.textContent = '';
+  };
+  el.cards.innerHTML = empty('Loading…', '');
+  clear();
+  try {
+    const lt = await remember('lt', 'learning-type', () => api(`/api/analysis/learning-type?source=${state.source}`));
+    if (!lt.ok) {
+      el.cards.innerHTML = empty('Cannot decide learning type', lt.reason || 'Not available for this source.');
+      return; // do not latch: a pipeline run should make this retry
+    }
+    const m = lt.meta;
+    const screen = lt.participants.filter((p) => p.inferred_learning_type === 'screen');
+    const other = lt.participants.filter((p) => p.inferred_learning_type !== 'screen');
+    const ag = m.recorded_agreement;
+    const cards = [
+      ['Participants decided', m.n_participants, 'one row per user below'],
+      ['Screen', screen.length, 'higher keyboard/mouse input volume'],
+      ['Non-screen', other.length, 'lower input volume'],
+      ['Recorded-label agreement', ag ? pct(ag.agreement_rate) : '—',
+        ag ? `${ag.n_labelled} labelled users` : 'no recorded labels to compare'],
+    ];
+    el.cards.innerHTML = cards.map(([k, v, s]) =>
+      `<div class="card"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div><div class="s">${esc(s)}</div></div>`).join('');
+
+    el.meta.textContent = `k=2 · silhouette ${isNum(m.silhouette) ? m.silhouette.toFixed(3) : '—'}`;
+
+    const cols = [...new Set([
+      'participant_id', 'inferred_learning_type', 'screen_score',
+      ...(m.features_reported || m.features_used || []),
+      'active_window_share', 'n_windows', 'n_sessions',
+    ])];
+    const rows = lt.participants.map((p) => ({ ...p, participant_id: short(p.participant_id, 10) }));
+    el.table.innerHTML = tableHTML({ exists: true, total: rows.length, columns: cols, rows }, { max: 60 });
+
+    el.score.innerHTML = lt.participants.length
+      ? barChart({
+        labels: lt.participants.map((p) => short(p.participant_id, 8)),
+        series: [
+          { name: 'screen', color: color(2), values: lt.participants.map((p) => (p.inferred_learning_type === 'screen' ? p.screen_score : null)) },
+          { name: 'non-screen', color: color(3), values: lt.participants.map((p) => (p.inferred_learning_type !== 'screen' ? p.screen_score : null)) },
+        ],
+        fmtY: (v) => v.toFixed(2),
+      }) + '<div class="axis-note">Score = projection onto the axis joining the two cluster centroids; bar colour = inferred group.</div>'
+      : empty('No participants', '');
+
+    const gScreen = lt.groups.find((g) => g.learning_type === 'screen') || { metrics: {}, participants: 0 };
+    const gOther = lt.groups.find((g) => g.learning_type === 'non-screen') || { metrics: {}, participants: 0 };
+    const metricKeys = (m.features_reported || []).concat(['active_window_share', 'n_windows', 'mean_screen_score']);
+    const groupRows = metricKeys.map((k) => ({
+      metric: k.replace(/_/g, ' '),
+      screen: gScreen.metrics[k],
+      'non-screen': gOther.metrics[k],
+    })).concat([{ metric: 'participants', screen: gScreen.participants, 'non-screen': gOther.participants }]);
+    el.groups.innerHTML = tableHTML(
+      { exists: true, total: groupRows.length, columns: ['metric', 'screen', 'non-screen'], rows: groupRows },
+      { max: 30 },
+    );
+
+    el.method.innerHTML = kv([
+      ['Method', m.method],
+      ['Orientation rule', m.orientation],
+      ['Decision level', 'participant — all sessions of a user pooled'],
+      ['Cluster features', (m.features_used || []).join(', ') || '—'],
+      ['Reported metrics', (m.features_reported || []).join(', ') || '—'],
+      ['Random state', m.random_state],
+      ['Recorded-label agreement', ag ? `${pct(ag.agreement_rate)} over ${ag.n_labelled} labelled users` : '—'],
+    ]) + `<div class="caption">Recorded <code>learning_type</code> labels are never used to fit or orient the clusters — they are only compared afterwards as a sanity check${ag ? `. ${esc(ag.note)}` : ''}. Disagreement can therefore be legitimate: in the synthetic source the recorded label is assigned randomly, so agreement ≈ chance is expected there.</div>`;
+    el.cards.dataset.loaded = '1';
+  } catch (err) {
+    el.cards.innerHTML = empty('Could not load learning-type analysis', err.message);
+    clear();
+  }
+}
+
 async function renderOverview(force) {
+  const sel = $('#ov-analysis');
+  if (sel && !sel.dataset.bound) {
+    sel.dataset.bound = '1';
+    sel.addEventListener('change', () => {
+      state.analysis = sel.value;
+      renderOverview(true);
+    });
+  }
+  const analysis = state.analysis || 'states';
+  if (sel) sel.value = analysis;
+  const showLearningType = analysis === 'learning-type';
+  const panelStates = $('#ov-panel-states'), panelLtype = $('#ov-panel-ltype');
+  if (panelStates) panelStates.hidden = showLearningType;
+  if (panelLtype) panelLtype.hidden = !showLearningType;
+  const hint = $('#ov-analysis-hint');
+  if (hint) {
+    hint.textContent = showLearningType
+      ? 'Unsupervised k=2 split of participants on keyboard/mouse input volume — recorded labels are only compared afterwards.'
+      : 'What the panels below show for the current source.';
+  }
+  if (showLearningType) { await renderLearningType(force); return; }
+
   const el = { cards: $('#ov-cards'), run: $('#ov-run'), quality: $('#ov-quality') };
   if (force || !el.cards.dataset.loaded) {
     el.cards.innerHTML = empty('Loading…', '');
@@ -629,6 +734,8 @@ function updateStatus(s) {
     invalidate(s.source || state.source);
     const ov = $('#ov-cards');
     if (ov) delete ov.dataset.loaded;
+    const lt = $('#lt-cards');
+    if (lt) delete lt.dataset.loaded;
     renderTab(state.tab, true);
     setRunEnabled(true);
   }

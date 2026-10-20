@@ -72,6 +72,14 @@ def _state_share_columns(dataset: pd.DataFrame) -> dict[str, str]:
     return rename
 
 
+def _first_column(frame: pd.DataFrame, *candidates: str):
+    """First matching column — dataset builders prefix some fields (``base__``)."""
+    for candidate in candidates:
+        if candidate in frame.columns:
+            return frame[candidate]
+    return None
+
+
 def build_session_output(
     dataset: pd.DataFrame,
     predictions: pd.DataFrame | None = None,
@@ -87,8 +95,10 @@ def build_session_output(
             "participant_id": frame.get("participant_id"),
             "session_id": frame.get("session_id"),
             "context": frame.get("context"),
-            "context_code": frame.get("context_code"),
-            "session_duration_seconds": frame.get("base__session_duration_seconds"),
+            "context_code": _first_column(frame, "context_code", "ctx__code"),
+            "session_duration_seconds": _first_column(
+                frame, "base__session_duration_seconds", "session_duration_seconds"
+            ),
             "n_windows": frame.get("n_windows"),
             "dominant_state": frame.get("state__dominant"),
             "mean_state_duration": frame.get("trans__state_duration_mean"),
