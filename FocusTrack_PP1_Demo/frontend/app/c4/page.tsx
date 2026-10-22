@@ -88,11 +88,11 @@ export default function C4Workbench() {
       const lastZ = lastProbe ? zOf(lastProbe.rating, hist.slice(0, -1)) : 0
       const lastAlert = [...prev].reverse().find((s) => s.out.alert)
       const out = scoreEpoch({
-        models, c1, c2, c3, window: win, screen: session.mode === "screen", minutesSinceBreak: t, lastZ, epochIndex: t, epochMinutes: 1,
+        models, c1, c2, c3, window: win, screen: session.mode === "screen", minutesOnTask: t, lastZ, epochIndex: t, epochMinutes: 1,
         alertsLastHour: prev.filter((s) => s.out.alert && s.t > t - 60).length, lastAlertIndex: lastAlert ? lastAlert.t : null,
         policy: { ...policy, threshold: thRef.current },
       })
-      const reasons = out.contributions.map((c) => reasonText(c, { c2, c3, minutesSinceBreak: t }))
+      const reasons = out.contributions.map((c) => reasonText(c, { c2, c3, minutesOnTask: t }))
       return [...prev, { t, out, reasons, response: null }]
     })
   }, [models, session, drop, policy, ratingsBefore])

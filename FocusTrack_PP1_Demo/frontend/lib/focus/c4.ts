@@ -40,7 +40,7 @@ export interface ScoreInput {
   c1: C1Features | null; c2: C2Features | null; c3: C3Features | null
   window: Feat[] // features of this and up to 3 previous epochs (oldest first)
   screen: boolean
-  minutesSinceBreak: number
+  minutesOnTask: number
   lastZ: number
   epochIndex: number
   epochMinutes: number // minutes per epoch (1, or 0.25 in fast demo)
@@ -65,7 +65,7 @@ export function scoreEpoch(inp: ScoreInput): C4Output {
   const focusProb = scoreLin(focusModel, focusVec(f, inp.screen, a))
   const c1FocusProb = inp.c1 ? scoreLin(inp.models.c1, c1Vec(f, inp.screen)) : null
   const rm = inp.models.risk[availKey(a)]
-  const x = riskVec(inp.window, inp.minutesSinceBreak, inp.lastZ, inp.screen, a)
+  const x = riskVec(inp.window, inp.minutesOnTask, inp.lastZ, inp.screen, a)
   const risk = scoreLin(rm, x)
   const xs = standardized(rm, x)
   // same signal, different meaning: low typing and idle keyboard are expected when reading or writing on paper,
@@ -103,11 +103,11 @@ export function scoreEpoch(inp: ScoreInput): C4Output {
 }
 
 /** Plain-language reasons from the top contributions. */
-export function reasonText(c: Contribution, ctx: { c2: C2Features | null; c3: C3Features | null; minutesSinceBreak: number }) {
+export function reasonText(c: Contribution, ctx: { c2: C2Features | null; c3: C3Features | null; minutesOnTask: number }) {
   switch (c.feature) {
     case "noise": return ctx.c2?.noise != null ? `Noise is about ${Math.round(ctx.c2.noise)} dB${ctx.c2.comfortNoise > 0 ? ", above your comfort range" : ""}` : "Noise level"
     case "temperature": return ctx.c2?.temp != null ? `Room temperature is ${ctx.c2.temp.toFixed(1)} °C${ctx.c2.comfortTemp > 0 ? ", outside your comfort range" : ""}` : "Room temperature"
-    case "minutes since break": return `${Math.round(ctx.minutesSinceBreak)} minutes since your last break`
+    case "time on task (min)": return `${Math.round(ctx.minutesOnTask)} minutes on task without a break`
     case "phone in frame": return "Your phone has been in view"
     case "looking away": return "You have been looking away from your work"
     case "app switching": return "You have been switching between apps"

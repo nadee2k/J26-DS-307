@@ -4,8 +4,10 @@
 
 export interface InputEvent {
   t: number
-  kind: "key" | "back" | "click" | "move" | "scroll" | "leave" | "return"
+  kind: "key" | "back" | "click" | "move" | "scroll" | "leave" | "return" | "switch"
   dist?: number
+  /** Application name for a "switch" event. Never a window title. */
+  app?: string
 }
 
 export interface EnvReading {

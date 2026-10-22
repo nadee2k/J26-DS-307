@@ -22,8 +22,10 @@ cross-context holdout, ablation studies, and statistical tests.
 ### Step 1 — Data collection (1 min)
 - **Hardware:** ESP32 sensor node → temperature, humidity, light, noise, motion
   (`Student_DataCollection_UI/hardware/`).
-- **Browser:** 1 Hz snapshot of keyboard count, mouse distance, clicks, idle time,
-  active application (`frontend/hooks/use-behavior.tsx`).
+- **Browser / desktop:** 1 Hz snapshot of keyboard count, mouse distance, clicks, idle time,
+  active application (`frontend/hooks/use-behavior.tsx`), plus a system-wide C1 desktop
+  agent (`hardware/python_bridge/desktop_agent.py`) that records key timing and a
+  Backspace flag from **any** application for the live C1 workbench.
 - **Vision:** face detected, eye gaze, head direction, phone detected.
 - **Label:** self-reported concentration level **1–5** per session
   (`concentration_logs`), mapped to labels: 1 Fully Distracted → 5 Deep Focus.

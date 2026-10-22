@@ -97,6 +97,7 @@ class StudySession(Base):
     environment_logs = relationship("EnvironmentLog", back_populates="session")
     behavior_logs = relationship("BehaviorLog", back_populates="session")
     vision_logs = relationship("VisionLog", back_populates="session")
+    c1_epochs = relationship("C1Epoch", back_populates="session")
 
 
 class EnvironmentLog(Base):
@@ -141,6 +142,41 @@ class VisionLog(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     session = relationship("StudySession", back_populates="vision_logs")
+
+
+class C1Epoch(Base):
+    """One numeric Component 1 feature epoch. No key content or raw input events are stored."""
+
+    __tablename__ = "c1_epochs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    student_id = Column(UUID(as_uuid=True), ForeignKey("students.id", ondelete="CASCADE"), nullable=True)
+    session_id = Column(UUID(as_uuid=True), ForeignKey("study_sessions.id", ondelete="SET NULL"), nullable=True)
+    recorded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    study_mode = Column(String, nullable=True)
+    task_type = Column(String, nullable=True)
+    epoch_seconds = Column(Integer, nullable=False, default=60)
+    source = Column(String, nullable=False, default="desktop")
+    active_application = Column(String, nullable=True)
+
+    typing_rate = Column(Float, nullable=False, default=0.0)
+    inter_key_var = Column(Float, nullable=False, default=0.0)
+    backspace_ratio = Column(Float, nullable=False, default=0.0)
+    idle_ratio = Column(Float, nullable=False, default=0.0)
+    mouse_speed = Column(Float, nullable=False, default=0.0)
+    switch_rate = Column(Float, nullable=False, default=0.0)
+    scroll_rate = Column(Float, nullable=False, default=0.0)
+    keyboard_active = Column(Boolean, nullable=False, default=False)
+    interaction_state = Column(Integer, nullable=False, default=0)
+    state_label = Column(String, nullable=True)
+    dwell = Column(Integer, nullable=False, default=1)
+    changes = Column(Integer, nullable=False, default=0)
+    away_share = Column(Float, nullable=False, default=0.0)
+    focus_prob = Column(Float, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    session = relationship("StudySession", back_populates="c1_epochs")
 
 
 class ConcentrationLog(Base):

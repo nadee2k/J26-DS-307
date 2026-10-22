@@ -269,11 +269,12 @@ export function runC3(study: SimStudy): C3Result {
       }
     }
   }
-  const fixedRate = fFixed / nFoc, dgdRate = fDgd / nFoc
+  const safeDiv = (a: number, b: number) => (b > 0 ? a / b : 0)
+  const fixedRate = safeDiv(fFixed, nFoc), dgdRate = safeDiv(fDgd, nFoc)
   return {
     zoneGeneric: mean(accG), zonePersonal: mean(accP), zoneP: wilcoxon(accP, accG).p,
-    falseDistraction: { fixed: fixedRate, dgd: dgdRate, reduction: 1 - dgdRate / fixedRate },
-    phoneRecall: { fixed: rFixed / phone, dgd: rDgd / phone, visible: visHit / Math.max(vis, 1), outOfFrame: outHit / Math.max(out, 1) },
+    falseDistraction: { fixed: fixedRate, dgd: dgdRate, reduction: fixedRate > 0 ? 1 - dgdRate / fixedRate : 0 },
+    phoneRecall: { fixed: safeDiv(rFixed, phone), dgd: safeDiv(rDgd, phone), visible: safeDiv(visHit, vis), outOfFrame: safeDiv(outHit, out) },
   }
 }
 
@@ -286,7 +287,7 @@ export interface C4Result {
   sessionTrace: { session: string; focus: number[]; risk: number[]; probes: { t: number; rating: number }[] } | null
 }
 
-const C4_NAMES = ["typing rate", "idle ratio", "app switching", "noise (dB)", "temperature", "looking away", "phone in frame", "reading motion", "minutes since start", "last probe (z)", "screen session"]
+const C4_NAMES = ["typing rate", "idle ratio", "app switching", "noise (dB)", "temperature", "looking away", "phone in frame", "reading motion", "minutes since start", "last probe (z)", "screen session", "typing (screen)", "idle (screen)", "reading motion (paper)"]
 function c4Vec(s: SimSession, t0: number, lastZ: number, use: { vision: boolean; context: boolean }) {
   const win = s.epochs.slice(Math.max(0, t0 - 3), t0 + 1)
   const m = (f: (e: Epoch) => number) => mean(win.map(f))

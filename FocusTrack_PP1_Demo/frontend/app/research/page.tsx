@@ -83,7 +83,7 @@ export default function ResearchPage() {
               <Stat label="Participants" value={String(labels.participants)} hint="half usually screen, half non-screen" />
               <Stat label="Sessions" value={String(labels.sessions)} hint={Object.entries(labels.sessionsPerRoom).map(([k, v]) => `${k} ${v}`).join(" · ")} />
               <Stat label="Focus probes" value={String(labels.probes)} hint={`${labels.labelledEpochs} labelled one-minute epochs of ${labels.epochs}`} />
-              <Stat label="Observer agreement" value={labels.kappa.toFixed(2)} hint={`quadratic-weighted κ on ${labels.observerProbes} library/campus probes`} />
+              <Stat label="Observer agreement" value={Number.isFinite(labels.kappa) ? labels.kappa.toFixed(2) : "n/a"} hint={`quadratic-weighted κ on ${labels.observerProbes} library/campus probes`} />
             </div>
             <Card className="border-[#eadfce] bg-white p-5 shadow-sm">
               <h2 className="font-semibold">Labelling protocol check</h2>

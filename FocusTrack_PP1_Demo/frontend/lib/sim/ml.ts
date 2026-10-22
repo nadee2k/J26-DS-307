@@ -5,8 +5,20 @@ export type Matrix = number[][]
 export function mean(xs: number[]) { return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0 }
 export function sd(xs: number[]) { const m = mean(xs); return Math.sqrt(mean(xs.map((x) => (x - m) ** 2))) || 1 }
 
+/** Width of a rectangular matrix. Throws on ragged or non-finite input so training bugs surface early. */
+export function matrixWidth(X: Matrix, name = "X") {
+  if (X.length === 0) return 0
+  const d = X[0].length
+  for (let i = 0; i < X.length; i++) {
+    if (X[i].length !== d) throw new Error(`${name} is ragged: row ${i} has ${X[i].length} columns, expected ${d}`)
+    for (let j = 0; j < d; j++) if (!Number.isFinite(X[i][j])) throw new Error(`${name}[${i}][${j}] is not a finite number`)
+  }
+  return d
+}
+
 export function standardizer(X: Matrix) {
-  const d = X[0]?.length ?? 0
+  const d = matrixWidth(X)
+  if (X.length === 0 || d === 0) return { mu: [] as number[], sg: [] as number[], apply: (Y: Matrix) => Y.map((r) => [...r]) }
   const mu = Array.from({ length: d }, (_, j) => mean(X.map((r) => r[j])))
   const sg = Array.from({ length: d }, (_, j) => sd(X.map((r) => r[j])))
   return { mu, sg, apply: (Y: Matrix) => Y.map((r) => r.map((v, j) => (v - mu[j]) / sg[j])) }
@@ -17,10 +29,15 @@ const sigmoid = (z: number) => 1 / (1 + Math.exp(-Math.max(-30, Math.min(30, z))
 /** Binary logistic regression (batch gradient descent, L2). Returns weights; w[0] is the bias. */
 export function fitLogistic(X: Matrix, y: number[], opts: { iters?: number; lr?: number; l2?: number; balanced?: boolean } = {}) {
   const { iters = 400, lr = 0.2, l2 = 0.01, balanced = true } = opts
-  const n = X.length, d = X[0].length
+  const d = matrixWidth(X)
+  if (y.length !== X.length) throw new Error(`fitLogistic: ${X.length} rows but ${y.length} labels`)
+  if (X.length === 0 || d === 0) return new Array(d + 1).fill(0)
+  const n = X.length
   const pos = y.filter((v) => v === 1).length
-  const wPos = balanced && pos > 0 ? n / (2 * pos) : 1
-  const wNeg = balanced && pos < n ? n / (2 * (n - pos)) : 1
+  // if every label is the same class there is nothing to balance
+  const singleClass = pos === 0 || pos === n
+  const wPos = balanced && !singleClass ? n / (2 * pos) : 1
+  const wNeg = balanced && !singleClass ? n / (2 * (n - pos)) : 1
   const w = new Array(d + 1).fill(0)
   for (let it = 0; it < iters; it++) {
     const g = new Array(d + 1).fill(0)
@@ -31,17 +48,26 @@ export function fitLogistic(X: Matrix, y: number[], opts: { iters?: number; lr?:
       g[0] += err
       for (let j = 0; j < d; j++) g[j + 1] += err * X[i][j]
     }
-    for (let j = 0; j <= d; j++) w[j] -= lr * (g[j] / n + (j > 0 ? l2 * w[j] : 0))
+    let largestStep = 0
+    for (let j = 0; j <= d; j++) {
+      const step = g[j] / n + (j > 0 ? l2 * w[j] : 0)
+      w[j] -= lr * step
+      largestStep = Math.max(largestStep, Math.abs(step))
+    }
+    if (largestStep < 1e-7) break // converged
   }
   return w
 }
 export function predictLogistic(w: number[], X: Matrix) {
-  return X.map((r) => sigmoid(r.reduce((s, v, j) => s + v * w[j + 1], w[0])))
+  return X.map((r) => sigmoid(r.reduce((s, v, j) => s + v * (w[j + 1] ?? 0), w[0] ?? 0)))
 }
 
 /** Multinomial (softmax) logistic regression for small K. */
 export function fitSoftmax(X: Matrix, y: number[], K: number, iters = 300, lr = 0.3, l2 = 0.01) {
-  const n = X.length, d = X[0].length
+  const d = matrixWidth(X)
+  if (y.length !== X.length) throw new Error(`fitSoftmax: ${X.length} rows but ${y.length} labels`)
+  if (X.length === 0 || d === 0 || K <= 0) return (Xt: Matrix) => Xt.map(() => 0)
+  const n = X.length
   const W = Array.from({ length: K }, () => new Array(d + 1).fill(0))
   for (let it = 0; it < iters; it++) {
     const G = Array.from({ length: K }, () => new Array(d + 1).fill(0))
@@ -61,7 +87,10 @@ export function fitSoftmax(X: Matrix, y: number[], K: number, iters = 300, lr = 
 
 /** Ordinary least squares with small ridge penalty (normal equations, Gaussian elimination). */
 export function fitLinear(X: Matrix, y: number[], ridge = 1e-3) {
-  const d = X[0].length + 1
+  const d0 = matrixWidth(X)
+  if (y.length !== X.length) throw new Error(`fitLinear: ${X.length} rows but ${y.length} labels`)
+  if (X.length === 0 || d0 === 0) { const w = new Array(d0 + 1).fill(0); return { w, predict: (Xt: Matrix) => Xt.map(() => 0) } }
+  const d = d0 + 1
   const A = Array.from({ length: d }, () => new Array(d).fill(0))
   const b = new Array(d).fill(0)
   for (let i = 0; i < X.length; i++) {
@@ -83,18 +112,28 @@ export function fitLinear(X: Matrix, y: number[], ridge = 1e-3) {
   return { w, predict: (Xt: Matrix) => Xt.map((r) => r.reduce((s, v, j) => s + v * w[j + 1], w[0])) }
 }
 
-/** k-means clustering (k-means++ style seeding with a fixed order for reproducibility). */
+/** k-means clustering (deterministic farthest-first seeding, duplicate-free). */
 export function kmeans(X: Matrix, k: number, iters = 40) {
+  const d = matrixWidth(X)
+  if (X.length === 0 || d === 0 || k <= 0) return { centroids: [] as Matrix, assign: (Y: Matrix) => Y.map(() => 0) }
+  const kk = Math.min(k, X.length)
+  const used = new Set<number>([0])
   const C: Matrix = [X[0]]
-  while (C.length < k) {
-    let best = 0, bestD = -1
-    X.forEach((x, i) => { const dmin = Math.min(...C.map((c) => dist2(x, c))); if (dmin > bestD) { bestD = dmin; best = i } })
+  while (C.length < kk) {
+    let best = -1, bestD = -1
+    X.forEach((x, i) => {
+      if (used.has(i)) return
+      const dmin = Math.min(...C.map((c) => dist2(x, c)))
+      if (dmin > bestD) { bestD = dmin; best = i }
+    })
+    if (best < 0) break
+    used.add(best)
     C.push(X[best])
   }
   let labels = new Array(X.length).fill(0)
   for (let it = 0; it < iters; it++) {
     labels = X.map((x) => nearest(x, C))
-    for (let c = 0; c < k; c++) {
+    for (let c = 0; c < C.length; c++) {
       const members = X.filter((_, i) => labels[i] === c)
       if (members.length) C[c] = members[0].map((_, j) => mean(members.map((m) => m[j])))
     }
@@ -145,6 +184,7 @@ export function weightedKappa(a: number[], b: number[], K = 5) {
   const O = Array.from({ length: K }, () => new Array(K).fill(0))
   a.forEach((v, i) => { O[v - 1][b[i] - 1]++ })
   const n = a.length
+  if (n === 0) return NaN // no observations → agreement is undefined, not perfect
   const ra = O.map((r) => r.reduce((s, v) => s + v, 0)), cb = O[0].map((_, j) => O.reduce((s, r) => s + r[j], 0))
   let num = 0, den = 0
   for (let i = 0; i < K; i++) for (let j = 0; j < K; j++) {

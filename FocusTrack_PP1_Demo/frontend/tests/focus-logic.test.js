@@ -7,6 +7,7 @@ const { fitZoneModel, predictZone } = L("zone-model.js")
 const { readingLike, dgdFrame, aggregateC3, readingMotionScore } = L("c3.js")
 const { hampel, aggregateC2, toDb, toLux, DEFAULT_CALIBRATION, comfortBand } = L("c2.js")
 const { computeC1 } = L("c1.js")
+const { sanitizeAgentEvent } = L("desktop.js")
 let pass = 0
 const ok = (name, fn) => { try { fn(); pass++; console.log("  ok  ", name) } catch (e) { console.log("  FAIL", name, "-", e.message); process.exitCode = 1 } }
 
@@ -119,5 +120,26 @@ ok("rates, corrections, idle time and switching", () => {
   assert(Math.abs(f.typingRate - 30) < 1e-9, "typing rate per minute")
   assert(Math.abs(f.backspaceRatio - 0.1) < 1e-9, "corrections")
   assert(f.idleRatio > 0.8 && f.switchRate === 1 && Math.abs(f.awayShare - 5 / 60) < 1e-9, JSON.stringify(f))
+})
+ok("desktop app switches count as switching, browser leaves do too", () => {
+  const ev = [{ t: 1000, kind: "switch", app: "VS Code" }, { t: 3000, kind: "switch", app: "Firefox" }, { t: 4000, kind: "leave" }]
+  const f = computeC1(ev, 0, 60000, false, [], null)
+  assert(Math.abs(f.switchRate - 3) < 1e-9, `switchRate ${f.switchRate}`)
+})
+
+console.log("C1 desktop agent client")
+ok("valid agent events survive validation", () => {
+  const e = sanitizeAgentEvent({ t: 1000, kind: "switch", app: "VS Code", seq: 7, char: "secret" })
+  assert.deepEqual(e, { t: 1000, kind: "switch", app: "VS Code" })
+})
+ok("move events need a positive distance", () => {
+  assert.equal(sanitizeAgentEvent({ t: 1, kind: "move" }), null)
+  assert.equal(sanitizeAgentEvent({ t: 1, kind: "move", dist: 0 }), null)
+  assert.deepEqual(sanitizeAgentEvent({ t: 1, kind: "move", dist: 4.5 }), { t: 1, kind: "move", dist: 4.5 })
+})
+ok("unknown event kinds and timestamps are rejected", () => {
+  assert.equal(sanitizeAgentEvent({ t: 1, kind: "paste" }), null)
+  assert.equal(sanitizeAgentEvent({ t: 0, kind: "key" }), null)
+  assert.equal(sanitizeAgentEvent(null), null)
 })
 console.log(`\n${pass} passed`)

@@ -19,7 +19,7 @@ export function Bars({ items, max = 1, format = (v: number) => v.toFixed(2), hig
   return (
     <div className="space-y-2">
       {items.map((it) => {
-        const w = Math.max(0, Math.min(1, it.value / max)) * 100
+        const w = (Number.isFinite(it.value) ? Math.max(0, Math.min(1, it.value / max)) : 0) * 100
         const hi = highlight ? it.label === highlight : false
         return (
           <div key={it.label} className="grid grid-cols-[minmax(0,14rem)_1fr_3.5rem] items-center gap-3 text-sm">

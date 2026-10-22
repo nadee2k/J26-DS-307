@@ -2,6 +2,10 @@ pyserial>=3.5
 requests>=2.28
 python-dotenv>=1.0
 pynput>=1.7
+psutil>=5.9
+# KDE Plasma 6 (Wayland) active-application tracking via KWin scripting.
+# Optional: without it the agent falls back to kdotool / xdotool / GNOME.
+dbus-next>=0.2
 opencv-python>=4.8
 mediapipe>=0.10
 numpy>=1.24

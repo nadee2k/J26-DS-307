@@ -6,7 +6,7 @@ type Row = Record<string, unknown>
 type Result = { data: unknown; error: { message: string } | null; count?: number | null }
 
 const KEY = "focustrack_demo_db_v1"
-const TABLES = ["students", "study_sessions", "concentration_logs", "environment_logs", "behavior_logs", "vision_logs", "telemetry_streams"]
+const TABLES = ["students", "study_sessions", "concentration_logs", "environment_logs", "behavior_logs", "vision_logs", "c1_epochs", "telemetry_streams"]
 const MAX_LOG_ROWS = 4000
 
 function load(): Record<string, Row[]> {

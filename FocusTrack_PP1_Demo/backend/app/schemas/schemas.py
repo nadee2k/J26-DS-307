@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, List, Generic, TypeVar
+from typing import Optional, List, Generic, TypeVar, Literal
 from datetime import datetime
 from uuid import UUID
 
@@ -167,6 +167,49 @@ class VisionLogResponse(BaseModel):
     eyeGaze: Optional[str] = None
     headDirection: Optional[str] = None
     phoneDetected: Optional[bool] = None
+    createdAt: datetime
+
+    class Config:
+        from_attributes = True
+        populate_by_name = True
+
+
+# Component 1 epoch schemas (numeric features only – never key content)
+class C1EpochBase(BaseModel):
+    studentId: Optional[UUID] = None
+    sessionId: Optional[UUID] = None
+    recordedAt: Optional[datetime] = None
+    studyMode: Optional[str] = None
+    taskType: Optional[str] = None
+    epochSeconds: int = 60
+    source: Literal["desktop", "browser"] = "desktop"
+    activeApplication: Optional[str] = None
+
+    typingRate: float = 0.0
+    interKeyVar: float = 0.0
+    backspaceRatio: float = 0.0
+    idleRatio: float = 0.0
+    mouseSpeed: float = 0.0
+    switchRate: float = 0.0
+    scrollRate: float = 0.0
+    keyboardActive: bool = False
+    state: int = 0
+    stateLabel: Optional[str] = None
+    dwell: int = 1
+    changes: int = 0
+    awayShare: float = 0.0
+    focusProb: Optional[float] = None
+
+
+class C1EpochCreate(C1EpochBase):
+    pass
+
+
+class C1EpochResponse(C1EpochBase):
+    id: UUID
+    studentId: Optional[UUID] = None
+    sessionId: Optional[UUID] = None
+    recordedAt: datetime
     createdAt: datetime
 
     class Config:

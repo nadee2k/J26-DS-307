@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 
 from app.config.database import init_db, get_db
 from app.models.models import EnvironmentLog, BehaviorLog, VisionLog
-from app.routes import students, sessions, concentration_logs, telemetry_streams, environment_logs, behavior_logs, vision_logs
+from app.routes import students, sessions, concentration_logs, telemetry_streams, environment_logs, behavior_logs, vision_logs, c1_epochs
 
 
 @asynccontextmanager
@@ -34,6 +34,7 @@ app.include_router(telemetry_streams.router)
 app.include_router(environment_logs.router)
 app.include_router(behavior_logs.router)
 app.include_router(vision_logs.router)
+app.include_router(c1_epochs.router)
 
 
 @app.get("/")

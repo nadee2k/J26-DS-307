@@ -65,6 +65,34 @@ create table if not exists behavior_logs (
   created_at timestamptz not null default timezone('utc', now())
 );
 
+-- Component 1: one numeric feature epoch at a time. Raw key/mouse events are never stored.
+create table if not exists c1_epochs (
+  id uuid primary key default gen_random_uuid(),
+  student_id uuid references students(id) on delete cascade,
+  session_id uuid references study_sessions(id) on delete set null,
+  recorded_at timestamptz not null default timezone('utc', now()),
+  study_mode text,
+  task_type text,
+  epoch_seconds integer not null default 60,
+  source text not null default 'desktop' check (source in ('desktop', 'browser')),
+  active_application text,
+  typing_rate double precision not null default 0,
+  inter_key_var double precision not null default 0,
+  backspace_ratio double precision not null default 0,
+  idle_ratio double precision not null default 0,
+  mouse_speed double precision not null default 0,
+  switch_rate double precision not null default 0,
+  scroll_rate double precision not null default 0,
+  keyboard_active boolean not null default false,
+  interaction_state integer not null default 0,
+  state_label text,
+  dwell integer not null default 1,
+  changes integer not null default 0,
+  away_share double precision not null default 0,
+  focus_prob double precision,
+  created_at timestamptz not null default timezone('utc', now())
+);
+
 create table if not exists vision_logs (
   id uuid primary key default gen_random_uuid(),
   session_id uuid not null references study_sessions(id) on delete cascade,
@@ -124,6 +152,8 @@ for each row execute function set_updated_at();
 create index if not exists study_sessions_student_id_idx on study_sessions (student_id, created_at desc);
 create index if not exists environment_logs_session_id_idx on environment_logs (session_id, created_at desc);
 create index if not exists behavior_logs_session_id_idx on behavior_logs (session_id, created_at desc);
+create index if not exists c1_epochs_student_id_idx on c1_epochs (student_id, recorded_at desc);
+create index if not exists c1_epochs_session_id_idx on c1_epochs (session_id, recorded_at desc);
 create index if not exists vision_logs_session_id_idx on vision_logs (session_id, created_at desc);
 create index if not exists concentration_logs_session_id_idx on concentration_logs (session_id, recorded_at desc);
 create index if not exists calibrations_student_id_idx on calibrations (student_id, created_at);
@@ -145,6 +175,7 @@ alter table students enable row level security;
 alter table study_sessions enable row level security;
 alter table environment_logs enable row level security;
 alter table behavior_logs enable row level security;
+alter table c1_epochs enable row level security;
 alter table vision_logs enable row level security;
 alter table concentration_logs enable row level security;
 alter table telemetry_streams enable row level security;
@@ -154,6 +185,7 @@ drop policy if exists students_public on students;
 drop policy if exists study_sessions_public on study_sessions;
 drop policy if exists environment_logs_public on environment_logs;
 drop policy if exists behavior_logs_public on behavior_logs;
+drop policy if exists c1_epochs_public on c1_epochs;
 drop policy if exists vision_logs_public on vision_logs;
 drop policy if exists concentration_logs_public on concentration_logs;
 drop policy if exists telemetry_streams_public on telemetry_streams;
@@ -163,6 +195,7 @@ create policy students_public on students for all using (true) with check (true)
 create policy study_sessions_public on study_sessions for all using (true) with check (true);
 create policy environment_logs_public on environment_logs for all using (true) with check (true);
 create policy behavior_logs_public on behavior_logs for all using (true) with check (true);
+create policy c1_epochs_public on c1_epochs for all using (true) with check (true);
 create policy vision_logs_public on vision_logs for all using (true) with check (true);
 create policy concentration_logs_public on concentration_logs for all using (true) with check (true);
 create policy telemetry_streams_public on telemetry_streams for all using (true) with check (true);

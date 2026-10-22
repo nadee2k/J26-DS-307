@@ -42,7 +42,8 @@ export function computeC1(events: InputEvent[], from: number, to: number, awayAt
     backspaceRatio: typed ? backs / keys.length : 0.12,
     idleRatio: Math.max(0, 1 - activeSeconds.size / dur),
     mouseSpeed: events.filter((e) => e.kind === "move").reduce((s, e) => s + (e.dist ?? 0), 0) / dur,
-    switchRate: events.filter((e) => e.kind === "leave").length / minutes,
+    // Browser mode counts leaving this tab; desktop mode counts foreground app changes.
+    switchRate: events.filter((e) => e.kind === "leave" || e.kind === "switch").length / minutes,
     scrollRate: events.filter((e) => e.kind === "scroll").length / minutes,
   }
   const state = states ? states.assign(c1Raw(f)) : 0
