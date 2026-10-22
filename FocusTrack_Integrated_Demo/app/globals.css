@@ -1,0 +1,105 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+}
+
+:root {
+  --background: #f6f1e8;
+  --foreground: #33244a;
+  --card: #ffffff;
+  --card-foreground: #33244a;
+  --primary: #7b3fa0;
+  --primary-foreground: #ffffff;
+  --secondary: #efe6f4;
+  --secondary-foreground: #3d2a5c;
+  --muted: #f3eee6;
+  --muted-foreground: #7a6a88;
+  --accent: #e4d4f0;
+  --accent-foreground: #3d2a5c;
+  --destructive: #b45454;
+  --border: #eadfce;
+  --input: #f3eee6;
+  --ring: #8b6bb0;
+  --radius: 1rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html,
+  body {
+    @apply min-h-full bg-background text-foreground antialiased;
+  }
+  body {
+    background-color: #f6f1e8;
+    background-image:
+      radial-gradient(900px 520px at 0% -10%, rgba(228, 212, 240, 0.65), transparent 55%),
+      radial-gradient(820px 460px at 100% 0%, rgba(196, 176, 214, 0.35), transparent 50%),
+      linear-gradient(180deg, #fbf8f4 0%, #f3eee6 100%);
+    background-attachment: fixed;
+  }
+  ::selection {
+    background: #e4d4f0;
+    color: #33244a;
+  }
+}
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(1.035); opacity: 1; }
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(18px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes draw {
+  from { stroke-dashoffset: 900; }
+  to { stroke-dashoffset: 0; }
+}
+
+.animate-breathe { animation: breathe 5.5s ease-in-out infinite; }
+.animate-rise { animation: rise 0.45s ease-out both; }
+.animate-slide-in { animation: slide-in 0.4s ease-out both; }
+.animate-draw { stroke-dasharray: 900; animation: draw 1.2s ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-breathe,
+  .animate-rise,
+  .animate-slide-in,
+  .animate-draw {
+    animation: none !important;
+  }
+}
+
+/* thin scrollbars inside panels */
+.thin-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+.thin-scroll::-webkit-scrollbar-thumb { background: #d9cde5; border-radius: 999px; }
+.thin-scroll::-webkit-scrollbar-track { background: transparent; }

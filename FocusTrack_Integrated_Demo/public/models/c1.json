@@ -1,0 +1,97 @@
+{
+  "version": "c1-web-1.0.0",
+  "createdAt": "2026-10-22T13:47:49.744162+00:00",
+  "trainedOn": "simulated study (seed 2026, 22 participants, 2870 probe-labelled rows)",
+  "dataSha256": "2433d2e418d632fa5db1fb8f05c8666ff8f916a1fdf1991f646fcbe3be2ec35a",
+  "labelRule": "learner-normalised probe rating z > 0, five-epoch smoothing",
+  "features": [
+    {
+      "name": "typingRate",
+      "unit": "keys/min",
+      "source": "typing_rate"
+    },
+    {
+      "name": "idleRatio",
+      "unit": "0-1",
+      "source": "idle_ratio"
+    },
+    {
+      "name": "switchRate",
+      "unit": "switches/min",
+      "source": "switch_rate"
+    },
+    {
+      "name": "mouseSpeed/100",
+      "unit": "100 px/s",
+      "source": "mouse_speed_px_s/100"
+    },
+    {
+      "name": "interKeyVar",
+      "unit": "coefficient of variation",
+      "source": "inter_key_cv"
+    },
+    {
+      "name": "backspaceRatio",
+      "unit": "0-1",
+      "source": "backspace_ratio"
+    }
+  ],
+  "model": {
+    "names": [
+      "typing rate",
+      "idle time",
+      "app switching",
+      "mouse activity",
+      "typing rhythm variability",
+      "corrections",
+      "screen session",
+      "typing (screen)",
+      "idle (screen)",
+      "switching (screen)"
+    ],
+    "w": [
+      -0.008345925996696844,
+      -0.10566354425974131,
+      -0.4707032519326988,
+      0.016913593343849037,
+      -0.1165419921320273,
+      0.1474574379523891,
+      -0.10107696327283652,
+      1.2230087049237663,
+      -0.028466082113473422,
+      -0.9900778573867667,
+      -0.48576468704270104
+    ],
+    "mu": [
+      20.677804394930316,
+      0.7428581808188148,
+      1.284474121219512,
+      0.6593267288958191,
+      0.5562440497386774,
+      0.12062801632404188,
+      0.4843205574912892,
+      19.76954915202091,
+      0.25989544918118435,
+      1.1898696658013934
+    ],
+    "sg": [
+      28.01109992573406,
+      0.2291801207860153,
+      1.2023067411050743,
+      0.6663303097803889,
+      0.06033639110405752,
+      0.013138790698728012,
+      0.49975409461314996,
+      28.6010774774023,
+      0.2892049471696916,
+      1.2805124830627521
+    ]
+  },
+  "evaluation": {
+    "lopo_macro_f1": 0.5411526977321501,
+    "participants": 22,
+    "min_macro_f1": 0.3877551020408163,
+    "max_macro_f1": 0.698667044809983
+  },
+  "notes": "Deployable browser subset. The full HMM state/transition/context model is evaluated in research/; this export keeps the live feature contract."
+}

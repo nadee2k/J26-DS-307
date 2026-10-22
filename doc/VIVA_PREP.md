@@ -1,13 +1,33 @@
 # Code Structure & Viva Preparation (J26-DS-307)
 
+**Component 1 — Context-Aware Learner Interaction-State Modelling** (Kumari M.A.D.N.)
+
+> **Read this before quoting a number.**
+> Every score in this document comes from the **simulated snapshot**
+> (`data/raw/simulated_seed2026/`, 22 participants). It proves the pipeline runs;
+> it is **not a research finding**. `research/docs/DECISIONS.md` D001 forbids
+> reporting it as one.
+>
+> **Authoritative sources** (check these, not this document, if they disagree):
+> `research/artifacts/results/summary.csv`, `statistics.csv`, `by_mode.csv`,
+> `research/artifacts/states/state_manifest.json`,
+> `research/artifacts/export/manifest.json`, `research/docs/DECISIONS.md`.
+>
+> This file was rewritten to match the current `research/` pipeline. Older notes
+> referencing KMeans, a 3-state Discrete HMM, 5-fold CV, or `FocusTrack_Component1/`
+> describe a superseded implementation.
+
 Contents:
-1. [Repository structure (clean map)](#1-repository-structure)
+1. [Repository structure](#1-repository-structure)
 2. [Data science pipeline in one page](#2-ds-pipeline-one-page)
-3. [Viva Q&A — Data collection & data](#3-viva-qa--data--collection)
-4. [Viva Q&A — Feature engineering](#4-viva-qa--feature-engineering)
-5. [Viva Q&A — Models](#5-viva-qa--models)
-6. [Viva Q&A — Evaluation & DS methodology](#6-viva-qa--evaluation--methodology)
-7. [Viva Q&A — Honest limitations & tough questions](#7-limitations--tough-questions)
+3. [Models trained, why, and accuracy](#3-models-trained-why-and-accuracy)
+4. [Viva Q&A — Data and labels](#4-viva-qa--data-and-labels)
+5. [Viva Q&A — Features and representation](#5-viva-qa--features-and-representation)
+6. [Viva Q&A — Models](#6-viva-qa--models)
+7. [Viva Q&A — Evaluation and statistics](#7-viva-qa--evaluation-and-statistics)
+8. [Viva Q&A — Deployment and engineering](#8-viva-qa--deployment-and-engineering)
+9. [Limitations and tough questions](#9-limitations-and-tough-questions)
+10. [60-second closing statement](#10-60-second-closing-statement)
 
 ---
 
@@ -15,315 +35,509 @@ Contents:
 
 ```
 J26-DS-307/
-├── doc/                            # proposal PDF, assessment criteria, demo docs
+├── doc/                              # proposal, assessment criteria, demo notes, this file
+│   ├── FocusTrack_Proposal_Report_C1_Kumari_IT23211032.docx
+│   ├── PP1_Assessment_Criteria.pdf
+│   ├── DEMO_SUMMARY.md               # demo script (partly stale — see note at end)
+│   └── VIVA_PREP.md                  # this file
 │
-├── Student_DataCollection_UI/      # ── DATA ACQUISITION SYSTEM (SO1) ──
-│   ├── supabase/schema.sql         # 7-table Postgres schema (students, study_sessions,
-│   │                               #   environment_logs, behavior_logs, vision_logs,
-│   │                               #   concentration_logs, telemetry_streams)
-│   ├── hardware/
-│   │   ├── esp32/sensor_reader.ino # firmware: temp/humidity/light/noise/motion
-│   │   ├── serial_reader.py        # serial → parser
-│   │   ├── behavior_logger.py      # keyboard/mouse/idle/app → Supabase
-│   │   ├── vision_logger.py        # face/gaze/head/phone → Supabase
-│   │   ├── supabase_client.py      # REST writes
-│   │   └── run_all.sh              # orchestrator
-│   ├── backend/                    # FastAPI collection API
-│   └── frontend/                   # Next.js UI: register, start/pause session,
-│       │                           #   1 Hz behaviour snapshot (hooks/use-behavior.tsx),
-│       │                           #   ESP32 serial parse in browser (lib/esp32-parse.ts)
+├── research/                         # ── AUTHORITATIVE ML PIPELINE (SO2–SO6) ──
+│   ├── configs/
+│   │   ├── base.yaml                 # shared constants: epoch, probes, features, paths
+│   │   ├── c1_baseline.yaml          # aggregated features only
+│   │   ├── c1_proposed.yaml          # HMM states + transitions + context
+│   │   └── c1_ablation.yaml          # full / no_context / no_states / no_transitions / baseline
+│   ├── data/
+│   │   ├── raw/simulated_seed2026/   # immutable snapshot: sessions, epochs, probes
+│   │   └── processed/                # generated: features, labels, states, representation
+│   ├── src/focustrack/
+│   │   ├── config.py                 # canonical columns, feature groups, paths
+│   │   ├── io/                       # simulated / CSV / Supabase loaders
+│   │   ├── prep/                     # cleaning, clock alignment, epoch windows
+│   │   ├── features/                 # keyboard, mouse, app, temporal features
+│   │   ├── labels/                   # probe windows + learner-normalised labels
+│   │   ├── states/                   # Gaussian HMM, BIC selection, stability, profiles
+│   │   ├── transitions/              # dwell, changes, interruption, recovery
+│   │   ├── context/                  # task / study-mode encoding + interactions
+│   │   ├── models/                   # majority, logreg, SVM, RF, XGBoost
+│   │   ├── pipeline/fold.py          # per-fold refit (scaler, HMM, imputation)
+│   │   └── evaluation/               # LOPO/LOTO splits, metrics, statistics
+│   ├── scripts/                      # build_features, run_states, run_experiments, export
+│   ├── contracts/                    # c1_features.json + c1_fixture.json (web contract)
+│   ├── tests/                        # pytest suite (38 test functions)
+│   ├── notebooks/                    # EDA only — never production logic
+│   └── artifacts/
+│       ├── states/                   # state_selection, state_profiles, manifest
+│       ├── results/                  # summary, metrics, per_participant, statistics, by_mode
+│       ├── runs/full/, runs/quick/   # full + smoke run outputs
+│       └── export/manifest.json      # deployed model provenance
 │
-└── FocusTrack_Component1/          # ── ML / RESEARCH COMPONENT (SO2–SO6) ──
-    ├── README.md                   # component overview (start here)
-    ├── src/
-    │   ├── config.py               # ⭐ single source of truth: feature groups,
-    │   │                           #   context codes, paths, seeds, constants
-    │   ├── pipeline.py             # end-to-end orchestration
-    │   ├── simulation.py           # synthetic data generator (demo/fallback)
-    │   ├── database/               # Supabase client + table export
-    │   ├── preprocessing/          # cleaning, sync, session segmentation, windowing
-    │   ├── features/               # keyboard/mouse/app/temporal feature builders
-    │   ├── states/                 # KMeans/GMM state discovery + profiling
-    │   ├── transitions/            # transition features + matrices (SO4)
-    │   ├── context/                # context encoding + holdout (SO5)
-    │   ├── models/
-    │   │   ├── dataset.py          # session-level dataset assembly
-    │   │   ├── train.py            # RF / SVM / XGBoost training + CV
-    │   │   └── sequential.py       # DiscreteHMM: Baum-Welch + Viterbi
-    │   ├── evaluation/
-    │   │   ├── splits.py           # StratifiedGroupKFold, cross-context split
-    │   │   ├── metrics.py          # Macro-F1, balanced acc, ROC-AUC
-    │   │   ├── experiments.py      # ablation × model × split grid
-    │   │   ├── sequential_experiments.py  # HMM representation experiments
-    │   │   └── statistics.py       # Wilcoxon, t-test, Cohen's dz, Cliff's delta
-    │   ├── integration/export.py   # schema-1.0 behavioural output contract
-    │   ├── analysis/learning_type.py      # screen vs non-screen analysis
-    │   └── visualization/          # plotting helpers
-    ├── scripts/run_pipeline.py     # CLI entry point
-    ├── notebooks/01_exploratory_analysis.ipynb   # EDA
-    ├── ui/                         # FastAPI demo UI
-    │   ├── app.py                  # routes, labelling rules, health
-    │   ├── sources.py              # real ↔ synthetic toggle
-    │   ├── session_infer.py / focus.py / live.py
-    │   └── static/                 # index, session-demo, focus, live pages
-    ├── tests/                      # 100+ pytest tests (features→UI)
-    ├── data/                       # REAL Supabase pilot: raw/ processed/ features/
-    │                               #   sequences/ models/ results/
-    └── data/synthetic/             # SYNTHETIC demo data + full results
+├── FocusTrack_PP1_Demo/              # ── CAPTURE APP + LIVE UI (PP1) ──
+│   ├── frontend/                     # Next.js UI; loads public/models/c1.json
+│   ├── backend/                      # FastAPI: epoch storage, scoring endpoint
+│   ├── hardware/python_bridge/       # desktop agent: key timing + Backspace
+│   └── supabase/                     # schema + C1 epoch migration
+│
+└── FocusTrack_Integrated_Demo/       # ── DEMO: login → session → outcome → progress ──
+    ├── app/ components/ hooks/ lib/  # offline, deterministic Next.js demo
+    └── scripts/
 ```
 
-**Key artifact files** (what you point at during the viva):
+> Older documents mention `FocusTrack_Component1/` and `Student_DataCollection_UI/`.
+> Those are **not in the current working tree**; their roles are now filled by
+> `research/` (ML) and `FocusTrack_PP1_Demo/` (capture + UI).
+
+**Key artifact files to point at during the viva**
 
 | File | Meaning |
 |---|---|
-| `data/results/run_manifest.json` | run config: events, windows, states, cluster quality |
-| `data/features/features.csv` | window-level feature matrix |
-| `data/features/state_profiles.csv` | interpretable state descriptions |
-| `data/features/session_dataset.csv` | session-level model input |
-| `data/results/experiment_summary.csv` | all model × representation × split scores |
-| `data/results/sequential_summary.csv` | HMM vs non-HMM comparison |
-| `data/results/statistics_comparison.csv` | significance tests vs baseline |
-| `data/results/transition_probabilities.csv` | state transition matrix |
-| `data/results/component1_final_outcomes/` | demo-ready session narratives |
+| `research/data/processed/manifest.json` | 22 participants, 132 sessions, 6,600 epochs, 2,870 labelled |
+| `research/data/processed/features.csv` | epoch-level feature matrix (canonical 14 columns) |
+| `research/data/processed/labelled_epochs.csv` | EDA labels (not for evaluation) |
+| `research/data/processed/c1_representation.csv` | model-ready table: features + states + transitions + context |
+| `research/artifacts/states/state_manifest.json` | selected k=4, BIC curve, elbow rule, seed stability, state labels |
+| `research/artifacts/states/state_profiles.csv` | per-state means and shares |
+| `research/artifacts/results/summary.csv` | mean metrics by split × representation × model |
+| `research/artifacts/results/metrics.csv` | one row per fold (338 rows) |
+| `research/artifacts/results/statistics.csv` | paired Wilcoxon, bootstrap CI, Cohen's dz |
+| `research/artifacts/results/by_mode.csv` | pooled screen vs non-screen |
+| `research/artifacts/results/by_task.csv` | per held-out task |
+| `research/artifacts/results/run_manifest.json` | config, hashes, git state, package versions |
+| `research/contracts/c1_fixture.json` | golden vector + expected probability (Python ↔ JS) |
+| `research/artifacts/export/manifest.json` | deployed model provenance + LOPO score |
 
 ---
 
-## 2. DS pipeline (one page)
+## 2. DS pipeline in one page
 
 ```
-[ESP32 + browser + vision loggers] → Supabase (7 tables)
-        ↓  raw events (1 Hz)
-preprocessing: cleaning → timestamp sync → session segmentation
+PP1 capture (browser 1 Hz + desktop agent + ESP32 + vision)
         ↓
-60 s sliding windows  (window_seconds=60, also supports 300)
+cleaning → clock alignment → session segmentation
         ↓
-feature engineering: baseline | temporal | state | transition | context
+60-second epochs  (config: epoch_seconds = 60)
         ↓
-unsupervised state discovery: KMeans k=4 (GMM alternative)  ← no labels used
+features: 14 canonical columns
+  available today: typing_rate, inter_key_cv, backspace_ratio,
+                   idle_ratio, mouse_speed_px_s, mouse_path_px, switch_rate
+  event-only (NaN): inter_key_mean_ms, burst_count, mean_burst_duration_s,
+                   mean_burst_length, click_rate, unique_apps, app_category_entropy
         ↓
-transition features + context encoding
+unsupervised states: Gaussian HMM (k = 4, diag covariance)
+  never sees labels  →  4 interpretable states
         ↓
-session-level aggregation (mean/std) → labelled dataset
-        (label = floor(mean(self-report 1–5) + 0.5), positive ≥ 3.5)
+transition features + task/study-mode context
         ↓
-training: RF / SVM / XGBoost  +  Discrete HMM (Baum-Welch, Viterbi)
+probe labels: a probe at t labels the 5 epochs before it
+  rating z-scored within learner; normaliser fitted on TRAIN probes only
         ↓
-evaluation: 5-fold StratifiedGroupKFold (group=participant)
-            × cross-context holdout × ablation × statistical tests
+per-fold representation build (states one-hot, interactions, imputation medians)
         ↓
-export: JSON/CSV artifacts → demo UI
+classifiers: majority, logistic, SVM(RBF), Random Forest, XGBoost
+        ↓
+evaluation: LOPO (22 folds) × LOTO (4 computer tasks) × ablation × paired tests
+        ↓
+export: logistic model + feature contract + golden fixture → PP1 web app
 ```
+
+**Scale of the simulated snapshot**
+
+| Item | Value |
+|---|---|
+| Participants / sessions | 22 / 132 |
+| Epochs / probe-labelled epochs | 6,600 / 2,870 |
+| Epoch length | 60 s |
+| Focus prevalence | ≈ 60 % positive |
+| HMM states | 4 |
+| LOPO folds / LOTO folds | 22 / 4 |
+| Classifier fits | 338 (13 model-runs × 26 folds) |
+| HMM refits | 78 (3 state-using representations × 26 folds) |
 
 ---
 
-## 3. Viva Q&A — Data & collection
+## 3. Models trained, why, and accuracy
 
-**Q: Where does the data come from?**
+### 3.1 The models
+
+| # | Model | Type | Settings | Why it is used |
+|---|---|---|---|---|
+| 1 | **Majority** | trivial baseline | predicts training majority | **Sanity floor**, not a candidate. Shows why accuracy alone is misleading. |
+| 2 | **Logistic Regression** | linear, probabilistic | `StandardScaler`, `max_iter=1000`, `class_weight=balanced` | Interpretable linear reference; calibrated probabilities; exported to the app. |
+| 3 | **SVM (RBF)** | non-linear, margin | `C=1.0`, `rbf`, `probability=True`, scaled | Strong on small-n, higher-dimensional data; reference model for the ablation (D012). |
+| 4 | **Random Forest** | bagged trees | `n_estimators=300`, `class_weight=balanced` | Robust non-linear baseline; mixed/correlated features; little tuning. |
+| 5 | **XGBoost** | gradient boosting | `n_estimators=300`, `max_depth=4`, `lr=0.1`, `subsample=0.9`, `colsample_bytree=0.9`, `scale_pos_weight=n_neg/n_pos` | Tests whether boosting beats bagging on this tabular data. |
+| 6 | **Gaussian HMM** | unsupervised states | 4 states, `covariance_type=diag`, `n_iter=200`, `tol=1e-4` | Creates interaction states + transitions (the novelty). Never sees labels. Refit per fold. |
+| 7 | **Deployed LR** (`c1-web-1.0.0`) | linear, probabilistic | 10 live app features, 5-epoch smoothing | Browser cannot decode an HMM; a reduced logistic model is exported (D013). |
+
+Classifier hyperparameters are **deliberately fixed** (D012): the research question
+is the representation, so model capacity must not explain a difference. SVM is the
+ablation model because it performed best on this data.
+
+### 3.2 Accuracy and macro-F1 — LOPO (leave-one-participant-out, 22 folds)
+
+Primary metric is **macro-F1**; accuracy is shown for reference only.
+
+| Model | Baseline F1 | Baseline Acc | Proposed F1 | Proposed Acc |
+|---|---|---|---|---|
+| Majority | 0.3035 | 0.4970 | 0.3035 | 0.4970 |
+| **Logistic** | 0.5121 | 0.5932 | **0.5237** | 0.5862 |
+| **SVM** | 0.5028 | **0.6073** | 0.5186 | 0.5806 |
+| Random Forest | 0.5130 | 0.5757 | 0.4958 | 0.5591 |
+| XGBoost | 0.5063 | 0.5693 | 0.5016 | 0.5575 |
+
+Ablations (SVM only): no_context **0.5214** / 0.5790 · no_states **0.4891** / 0.5720 ·
+no_transitions **0.4925** / 0.5758.
+
+### 3.3 Accuracy and macro-F1 — LOTO (leave-one-task-out, 4 computer tasks)
+
+| Model | Baseline F1 / Acc | Proposed F1 / Acc |
+|---|---|---|
+| Logistic | 0.6031 / 0.6158 | 0.5382 / 0.5839 |
+| SVM | 0.5974 / 0.6101 | 0.5496 / 0.5801 |
+| **Random Forest** | 0.5757 / 0.5893 | **0.6044** / 0.6136 |
+| XGBoost | 0.5768 / 0.5891 | 0.5691 / 0.5856 |
+| Majority | 0.3290 / 0.5002 | 0.3290 / 0.5002 |
+
+> LOTO is **not comparable** to LOPO: the same participants appear on both sides,
+> because LOTO only holds out the task (D011). LOTO answers "does the
+> representation transfer to an unseen task?", not "does it generalise to a new
+> learner?".
+
+### 3.4 What the numbers actually say
+
+- Best LOPO cell: **proposed + Logistic, macro-F1 0.5237**.
+- Best LOTO cell: **proposed + Random Forest, 0.6044**.
+- Removing states costs the most: 0.5186 → 0.4891 (p = 0.059).
+- Removing transitions costs 0.026 (p = 0.098); removing context changes nothing
+  meaningful (−0.003, p = 0.526).
+- **No LOPO difference is significant at α = 0.05.** Proposed-vs-baseline
+  p-values range 0.22–0.66. Say this plainly.
+- The clearest signal is **non-screen** sessions: proposed SVM 0.499 vs baseline
+  SVM 0.380 (+0.119), while screen only moves 0.618 → 0.645 (+0.027).
+- Deployed model (`c1-web-1.0.0`): LOPO macro-F1 **0.541**, per-participant range
+  0.388–0.699.
+
+### 3.5 Why other models are not used
+
+| Not used | Reason |
+|---|---|
+| **Deep learning (LSTM / Transformer / CNN)** | Only 2,870 labelled rows from 22 participants. Too little data to fit sequence models; they would memorise participants. Future work with hundreds of sessions. |
+| **kNN** | Degrades with correlated, differently-scaled features; no feature importance; no gain at this n. |
+| **Naive Bayes** | Assumes conditional independence, but `typing_rate`, `idle_ratio`, `switch_rate` are strongly correlated. |
+| **Single decision tree** | High variance, unstable; RF is the strictly better version of the same idea. |
+| **LightGBM / CatBoost / AdaBoost** | Redundant with XGBoost. No high-cardinality categoricals for CatBoost; one booster keeps the grid small and comparable. |
+| **MLP / AutoML** | Small tabular data, large tuning burden, no expected gain; would break the fixed-model-budget design. |
+| **PCA / automatic feature selection** | The study tests *representations* via ablation; PCA would destroy the interpretability of the feature groups. |
+| **SMOTE / oversampling** | Synthetic neighbours can leak across participants in grouped CV; `class_weight=balanced` is safer. |
+| **KMeans / GMM as the state model** | Replaced by the Gaussian HMM because KMeans is memoryless — it cannot model persistence, interruption or recovery. |
+| **HMM as a classifier** | It is a representation, not a predictor. Its contribution is measured by the `no_states` ablation, not by its own F1. |
+| **Grid search / tuning** | Deliberate: fixed hyperparameters so model capacity cannot explain a representation difference (D012). |
+
+**One-sentence justification:** *"The research question is about representation,
+not model tuning, so every representation is evaluated with the same fixed model
+budget; SVM is the reference model for the ablation because it performed best on
+this data."*
+
+---
+
+## 4. Viva Q&A — Data and labels
+
+**Q1. Where does the data come from?**
 Three modalities: (1) ESP32 node — temperature, humidity, light, noise, motion;
-(2) browser behaviour logger at 1 Hz — keyboard count, mouse distance/clicks, idle
-time, active application; (3) vision logger — face detected, eye gaze, head
-direction, phone detected. Stored in Supabase/Postgres (7 tables).
+(2) browser + desktop agent — keyboard timing, mouse, idle time, active
+application, Backspace flag; (3) vision logger — face, gaze, head direction,
+phone. Stored in Supabase/Postgres.
 
-**Q: What is your dataset size?**
-Real pilot: 2,636 events → 94 windows from 2 sessions (pilot stage). Synthetic
-demo: 27,000 events → 450 windows from 45 sessions. Window size = 60 s.
+**Q2. How big is the dataset?**
+The committed snapshot is simulated: 22 participants, 132 sessions, 6,600
+one-minute epochs, 2,870 probe-labelled epochs. The real pilot is much smaller
+and is not what the reported numbers come from.
 
-**Q: What is the target variable?**
-Self-reported concentration level 1–5 per session
-(`concentration_logs.level`): 1 Fully Distracted, 2 Somewhat Distracted,
-3 Neutral, 4 Engaged, 5 Deep Focus. Session label = `floor(mean + 0.5).clip(1,5)`;
-binary task uses positive ≥ 3.5.
+**Q3. What is the target variable?**
+Self-reported concentration 1–5 per session. A probe at epoch `t` labels the five
+epochs before it (`probe_window_epochs = 5`). Ratings are z-scored within learner;
+"focused" is z > 0, and a "focus drop" is z ≤ −1.
 
-**Q: Is it supervised or unsupervised?**
-Both. State discovery (KMeans/GMM/HMM) is **fully unsupervised and never sees
-labels** — that's a deliberate anti-leakage design. Concentration prediction is
-supervised on the self-report labels.
+**Q4. Why not use the raw 1–5 rating as the label?**
+Learners use the scale differently — one person's 4 is another's 2. Within-learner
+z-scoring removes that offset. It also gives a defensible binary target.
 
-**Q: How do you handle missing/noisy data?**
-Preprocessing module (`src/preprocessing/`) does cleaning, timestamp
-synchronisation, session segmentation and imputation before windowing; windows
-with insufficient coverage are dropped. `tests/` verify behaviour on malformed
-inputs.
+**Q5. How do you avoid label leakage in LOPO?**
+The held-out participant has no training ratings, so the normaliser uses the
+**training-population** mean and SD (`label_normalisation: train_population`).
+Using the test participant's own probes would leak the test label distribution
+(D002).
 
-**Q: Class imbalance?**
-Class weights: `class_weight='balanced'` on RF and SVM; primary metric is
-**Macro-F1** rather than accuracy, so majority-class guessing scores poorly.
+**Q6. Isn't a self-report label weak?**
+Yes. It is noisy but ethical — no EEG or eye-tracker ground truth is available.
+Mitigations: five-epoch probe windows, within-learner normalisation, balanced
+class weights, macro-F1, and states that never see labels.
 
----
+**Q7. Is the simulator hiding the answer?**
+No. The snapshot exports observable fields only; the hidden focus process is
+deliberately not written, so no analysis can accidentally use simulator truth
+(D001).
 
-## 4. Viva Q&A — Feature engineering
-
-**Q: What features do you engineer? (Answer in five groups — all in `src/config.py`)**
-
-1. **Baseline / aggregated** (proposal §3.9): `key_event_count`, `typing_rate`
-   (keys/min), `mouse_distance`, `mouse_clicks`, `idle_ratio`
-   (idle seconds / window length), `application_switch_count`,
-   `unique_application_count`.
-2. **Temporal**: `burst_count`, `mean_burst_duration`, `mean_burst_length`
-   (activity bursts separated by idle gaps), `mean/std/max_keyboard_count`,
-   `mean/std_mouse_velocity`, `mean_mouse_acceleration`, `mean_idle_time`,
-   `application_switch_frequency`, `session_progress`, plus window-over-window
-   deltas/rolling statistics.
-3. **State**: `interaction_state` — discrete cluster id from KMeans (k=4).
-4. **Transition**: `previous_state`, `transition_type`, `state_duration`,
-   `state_change_rate`, `state_entropy`, `stable_state_duration`,
-   `interruption_count`, `recovery_count`.
-5. **Context**: `context_code` for task type (reading/coding/writing/zoom/
-   assignment), plus location and learning type (screen vs non-screen).
-
-**Q: Why 60-second windows?**
-Behavioural signals like typing rate are stable over a minute; shorter windows are
-noisy, longer ones dilute transient disengagement. 300 s is also supported
-(`WINDOW_SIZES_SECONDS = (60, 300)`) for sensitivity analysis. Overlap gives more
-samples but folds are grouped by participant so it doesn't leak.
-
-**Q: Why aggregate to session level?**
-The classification target (self-report) is per session, so window features are
-aggregated (mean/std) to one row per session (`session_dataset.csv`). This also
-prevents window-level pseudo-replication.
-
-**Q: How do you encode categorical context?**
-Deterministic integer codes (`CONTEXT_CODES` in `config.py`) so artifacts are
-reproducible; identifiers/labels are excluded from features via `NON_FEATURE_COLS`
-(e.g. `participant_id`, `session_id`, `focus_label` are never model inputs).
-
-**Q: What is feature selection / ablation?**
-Rather than a single selected feature set, we run an **ablation study**: proposed
-representation minus one group at a time (`ablation_no_temporal`, `ablation_no_context`,
-`ablation_no_transition`, `ablation_no_state`) vs `baseline`. This measures each
-group's marginal contribution — it's the answer to RQ2.
-
-**Q: Any feature scaling?**
-Yes for SVM: `StandardScaler` inside the pipeline (distance-based model needs it).
-Tree models are scale-invariant so no scaling there.
+**Q8. What is the class balance?**
+About 60 % focused. That is why accuracy is a poor primary metric: the majority
+class gets 0.497 accuracy but only 0.303 macro-F1.
 
 ---
 
-## 5. Viva Q&A — Models
+## 5. Viva Q&A — Features and representation
 
-**Q: Which models did you use and why?**
-Three supervised families as *candidates* (proposal §3.9):
-- **Random Forest** — 300 trees, `class_weight='balanced'`; robust non-linear
-  baseline, handles mixed features, little tuning.
-- **SVM (RBF)** — C=1.0, balanced class weights, StandardScaler pipeline;
-  strong on small-n, high-dimensional data.
-- **XGBoost** — 300 estimators, max_depth 4, lr 0.1, subsample 0.9; gradient
-  boosting usually wins on tabular data.
+**Q9. What features do you compute?**
+Fourteen canonical columns in `config.py`: typing rate, inter-key mean/CV,
+Backspace ratio, burst count/duration/length, mouse path/speed, click rate, idle
+ratio, switch rate, unique apps, app-category entropy. `mouse_path_px` is derived
+as speed × duration.
 
-**Q: What unsupervised model do you use?**
-**KMeans with k=4** (default, `random_state=42`) over window features to discover
-interaction states; **GMM** as a probabilistic alternative. State quality measured
-by **silhouette 0.773**, Davies-Bouldin 0.676, Calinski-Harabasz 142.6 (real run).
-`state_profiles.csv` interprets each state (e.g. State 0 = idle-heavy writing,
-State 1 = high typing intensity).
+**Q10. Which features are actually available?**
+Seven: `typing_rate`, `inter_key_cv`, `backspace_ratio`, `idle_ratio`,
+`mouse_speed_px_s`, `switch_rate`, `mouse_path_px`. The other seven need
+event-level key timestamps or app names the PP1 logger does not persist, so they
+are `NaN` with `is_missing_*` flags (D003). `inter_key_cv` and `backspace_ratio`
+are also masked below 10 keys/min because rhythm is undefined in a quiet epoch.
 
-**Q: How did you choose k=4?**
-Cluster-selection metrics (silhouette / Davies-Bouldin) across candidate k, plus
-interpretability — 4 states map cleanly to low/medium/high engagement profiles.
-(If asked for the sweep, point at `src/states/` validation module and mention
-k is a config constant `DEFAULT_N_STATES = 4`.)
+**Q11. Why 60-second epochs?**
+Typing rate and idle ratio are stable over a minute; shorter windows are noisy,
+longer ones blur transient disengagement. The proposal also supports 300 s for
+sensitivity analysis.
 
-**Q: Explain the HMM.**
-Discrete (multinomial) HMM over interaction states: **3 hidden states**,
-observation alphabet = 4 interaction states.
-- **Baum-Welch (EM)** for MLE of π, A, B — 60–100 iterations, tol 1e-4,
-  **3 random restarts**, best log-likelihood kept (implementation in
-  `src/models/sequential.py`; optimised 11× with a local log-sum-exp — see git log).
-- **Viterbi** decodes the most likely hidden-state sequence.
-- Hidden states become features in the `proposed_hmm` representation.
-- Outputs: `hmm_hidden_transitions.csv` (near-absorbing hidden states with
-  self-loop ≈ 1.0).
+**Q12. What are the five representation groups?**
+1. **Aggregated** — typing, idle, mouse speed, switch rate.
+2. **Temporal** — conditional rhythm/correction features + missing flags.
+3. **States** — one-hot HMM state (k−1 columns).
+4. **Transitions** — interruption, dwell, changes in 5 min, time since
+   interruption, censoring, recovery, recovered.
+5. **Context** — `is_screen`, task one-hots (reference = reading), screen ×
+   activity, state × screen, state × task.
 
-**Q: Why an HMM if you already have states?**
-KMeans gives memoryless states; the HMM adds **temporal dependence** — the
-probability of the current state depends on the previous one (persistence,
-interruption, recovery). It models *dynamics*, not just snapshots.
+**Q13. How many features per representation?**
+Baseline 4; no_context 19; no_states 14–17; no_transitions 27–35; proposed 35–43.
+The range is because a column with no training variance (e.g. a task absent from
+a fold) is dropped inside that fold.
 
-**Q: Which model performed best?**
-Macro-F1, participant split: **SVM with the proposed representation** — 0.589
-synthetic, 0.534 real. Best overall synthetic row: no-transition+SVM 0.623.
-Baseline+RF 0.464, baseline+SVM 0.373. On cross-context shift the gap widens:
-proposed+SVM 0.377 vs baseline+SVM 0.083.
+**Q14. Why encode context as interactions, not just a task ID?**
+A task ID shifts the intercept; interactions let the *effect* of typing or
+switching differ by task and state. That is the context-aware claim.
 
-**Q: Did the HMM help?**
-Honestly: **not much on synthetic data** — proposed 0.589 vs proposed_hmm 0.543
-(SVM), RF unchanged (0.511), XGB slightly up (0.447 → 0.455). Interpretation:
-the hand-engineered transition features already encode most of the sequential
-information, leaving little for the HMM to add. We report this rather than hide it.
+**Q15. What is the ablation for?**
+It answers RQ2: proposed minus one group at a time shows each group's marginal
+contribution. It is not feature selection — no group is discarded from the final
+model.
 
-**Q: Hyperparameters — are they tuned?**
-Values are fixed defaults in `src/config.py` / `src/models/train.py`
-(`RANDOM_STATE = 42` for reproducibility). If pressed: the research focus is
-representation comparison (ablation) under a *fixed* model budget, so that model
-capacity doesn't confound the representation effect — a deliberate controlled-
-experiment choice. Grid search is listed as future work.
+**Q16. Why are identifiers and labels excluded?**
+`participant_id`, `session_id`, `focus_label`, probe ratings and task
+descriptions are in `NON_FEATURE_COLS`/`ID_COLUMNS`, never in X. Otherwise the
+model could learn the participant rather than the behaviour.
+
+**Q17. Do you scale features?**
+Yes, `StandardScaler` inside the pipeline for logistic and SVM — fitted on the
+training fold only. Trees are scale-invariant, so RF/XGBoost skip it.
 
 ---
 
-## 6. Viva Q&A — Evaluation & methodology
+## 6. Viva Q&A — Models
 
-**Q: What is your evaluation metric and why?**
-**Macro-F1** (primary) — unweighted mean of per-class F1, robust to class
-imbalance. Secondary: balanced accuracy, accuracy, macro precision/recall, ROC-AUC.
+**Q18. Which models did you use and why?**
+Five classifiers — majority (floor), logistic (interpretable linear), SVM-RBF
+(small-n non-linear reference), Random Forest (robust bagging), XGBoost
+(boosting). Plus a Gaussian HMM for label-free states and a deployed logistic
+model. See §3.1.
 
-**Q: What validation scheme?**
-- **5-fold StratifiedGroupKFold**, `groups = participant_id/session_id`: windows
-  from the same participant never appear in both train and test → prevents
-  subject leakage, the classic pitfall in wearables/behaviour sensing.
-- **Cross-context holdout**: train on some task types/locations, test on unseen
-  ones — measures generalisation, the harder and more honest number.
+**Q19. Why include a majority classifier?**
+It is the honest floor. If a model cannot beat 0.303 macro-F1, the representation
+adds nothing. It also exposes that accuracy is misleading under imbalance.
 
-**Q: What is your baseline?**
-Two baselines: (1) **representation baseline** = conventional aggregated features
-only (`BASELINE_SESSION_COLS`); (2) the proposed = baseline + temporal + states +
-transitions + context. RQ2 is answered by proposed > baseline.
+**Q20. Why is SVM the ablation model but all five reported for baseline/proposed?**
+SVM was the strongest on this data, so it gives the cleanest representation
+comparison. Running all five on every ablation would triple the runtime without
+changing the conclusion.
 
-**Q: How do you know the difference is significant?**
-Paired per-fold comparison of proposed vs baseline (`statistics.py`):
-Wilcoxon signed-rank, paired t-test, **Cohen's dz**, **Cliff's delta**, bootstrap
-95% CI. Headline: synthetic SVM proposed vs baseline Δ **+0.216**, CI
-[0.080, 0.352], dz **1.24**; best contrast Δ +0.249, dz 1.87, **p = 0.014**.
+**Q21. Are hyperparameters tuned?**
+No — fixed defaults (D012). The experiment is a controlled comparison of
+representations. Grid search is future work, and tuning per representation would
+confound the result.
 
-**Q: How do you avoid data leakage?**
-1. States/clusterers fitted **without labels**.
-2. Grouped CV → no participant overlap across folds.
-3. Identifiers and label columns listed in `NON_FEATURE_COLS` are excluded from X.
-4. Scaling inside the CV pipeline (fit on train fold only).
-5. `RANDOM_STATE = 42` for reproducibility; `run_manifest.json` records the config.
+**Q22. Why do RF and XGBoost lose to logistic on LOPO?**
+With 22 participants and correlated features, high-variance models overfit
+participant idiosyncrasies. A regularised linear model is the better bias–variance
+trade-off at this n. This is a legitimate result, not a bug.
 
-**Q: What about the screen vs non-screen research question?**
-`src/analysis/learning_type.py` splits analysis by `students.learning_type`;
-context features and the cross-context split test whether the representation
-transfers between screen (coding/zoom) and non-screen (reading/writing) tasks.
+**Q23. Why keep XGBoost if it never wins?**
+It is the expected strong tabular baseline. Reporting it and showing it does not
+win is more credible than omitting it.
 
-**Q: How is this reproducible?**
-`python scripts/run_pipeline.py --source synthetic` regenerates every artifact;
-100+ pytest tests; manifest records event counts, window size, k, seed, and
-cluster metrics.
+**Q24. What does `class_weight='balanced'` do?**
+It reweights the loss inversely to class frequency, so the minority ("not focused")
+class is not ignored. XGBoost gets the equivalent `scale_pos_weight = n_neg/n_pos`.
+
+**Q25. Why a Gaussian HMM and not KMeans?**
+KMeans gives memoryless clusters. The HMM models the probability of the current
+state given the previous one — persistence, interruption, recovery — which is the
+temporal claim of the proposal.
+
+**Q26. How did you choose four states?**
+BIC was computed for k = 2–6 over five seeds. Median BIC keeps falling, so there
+is no interior minimum; the rule stops at the smallest k after which adding a
+state improves BIC by less than 10 % of the total gain, which gives k = 4 (D007).
+The full curve is in `state_manifest.json`, so the choice is auditable.
+
+**Q27. Why fix k across folds but refit the HMM?**
+k is a representation design decision; running BIC inside 22 folds would make the
+representation depend on the test participant and cost 22 × 25 extra fits (D010).
+The parameters, scaler and state labels are refit on each training fold.
+
+**Q28. How do you prove the HMM never saw labels?**
+`HMMStateModel.fit` receives only the four behavioural features, never
+`focus_label`. The per-fold pipeline builds representations from training epochs
+only, and the test participants are decoded with the training HMM.
+
+**Q29. What do the four states mean?**
+Idle/away, Sustained typing, Browsing/light activity, Frequent switching. They
+come from the state means in `state_profiles.csv`, not from manual assignment.
+
+**Q30. Why does removing states hurt more than removing transitions?**
+The state one-hots carry the coarse activity regime; transitions refine timing
+within it. Removing states also removes the state × context interactions, so the
+loss is larger.
+
+**Q31. What is the deployed model, and why is it different?**
+`c1-web-1.0.0` is a logistic regression on the ten inputs the browser can produce
+(six epoch features, screen mode, three screen interactions) with five-epoch
+smoothing. The browser cannot decode a Gaussian HMM or serve XGBoost without a
+backend (D013). Its LOPO macro-F1 is 0.541 for a different representation, so it
+is not directly comparable to the 0.519 SVM result.
+
+**Q32. Why not use the HMM inside the app?**
+It needs a backend decoder or an ONNX export. The FastAPI backend already exists;
+moving the full representation there is the next engineering step, with the same
+feature contract and fixture test.
 
 ---
 
-## 7. Limitations & tough questions
+## 7. Viva Q&A — Evaluation and statistics
+
+**Q33. What is the primary metric?**
+Macro-F1 — the unweighted mean of per-class F1. It penalises majority-class
+guessing and treats both classes equally. Secondary: balanced accuracy, accuracy,
+macro precision/recall, ROC-AUC.
+
+**Q34. What are the validation schemes?**
+LOPO: hold out one participant, 22 folds — the participant-generalisation result.
+LOTO: hold out one computer task (coding, writing, assignment, zoom), 4 folds —
+task transfer. Reading and handwriting are excluded from LOTO because non-screen
+learners do not use the computer.
+
+**Q35. Why not 5-fold CV?**
+LOPO is stricter and matches the deployment question: a new learner. Five-fold
+grouped CV would leave fewer held-out participants per fold and give a less
+honest estimate of unseen-learner performance.
+
+**Q36. Can you compare LOPO and LOTO scores?**
+No. LOTO reuses participants across train and test, so its scores are inflated
+relative to LOPO (D011). Report them separately.
+
+**Q37. Is overlapping windows or five-epoch probe smoothing leakage?**
+No, provided the grouping is respected. Folds never split a participant across
+train and test, and the label normaliser is fitted on training probes only.
+
+**Q38. Your improvements are not significant. Do you still claim the representation works?**
+Not as a finding. On the simulated snapshot the direction is consistent for
+logistic and SVM, and the ablation points at states and transitions, but
+p-values are 0.059–0.66. The claim is that the protocol is valid and the pipeline
+is reproducible; the effect size must be re-tested on real participants.
+
+**Q39. What do the statistics add?**
+Paired Wilcoxon signed-rank on per-participant LOPO scores, bootstrap 95 % CI,
+and Cohen's dz. They stop you from reading noise as an improvement — which is
+exactly what happens to XGBoost here (Δ −0.005).
+
+**Q40. Why is the non-screen result the most promising?**
+Baseline non-screen SVM macro-F1 is 0.380 versus 0.499 for the proposed
+representation (+0.119), while screen moves only +0.027. Context and state
+features matter most when the learner is away from the keyboard, which is the
+paper's motivation.
+
+**Q41. How do you avoid overfitting the evaluation?**
+Fixed hyperparameters, no test-set peeking, one pre-registered split design,
+labels excluded from X, all learned transforms refit inside the fold, and every
+run writes a manifest with hashes and git state.
+
+---
+
+## 8. Viva Q&A — Deployment and engineering
+
+**Q42. How do you reproduce every number?**
+```bash
+cd research
+make setup        # Python 3.12 + editable install
+make data         # features + labels
+make states       # HMM, transitions, context
+make experiments  # model grid, ablations, statistics
+make export       # deployable model + contract
+make test
+```
+`run_manifest.json` records config, data hashes, package versions and git state.
+
+**Q43. Where are the trained models stored?**
+Not stored. Every fold refits its scaler, HMM, state labels and imputation
+medians, so a binary would be one arbitrary fold. The artifacts are the metrics,
+predictions and the exported JSON model. This is a deliberate reproducibility
+choice.
+
+**Q44. How does the web app stay in sync with the research model?**
+`contracts/c1_features.json` fixes feature order and units;
+`contracts/c1_fixture.json` holds a golden vector and expected probability. Both
+`tests/test_export.py` (Python) and `verify-c1-model.mjs` (Node) reproduce it, so
+the two implementations cannot silently drift.
+
+**Q45. Why is the app not training its own model?**
+The app is a capture and demonstration layer. Feature definitions, labels, states
+and training live in `research/`; the app loads the exported artifact and only
+falls back to browser training if it is missing or malformed (D006).
+
+**Q46. What happens if the model file is missing?**
+The frontend falls back to browser training so the demo still runs, but that
+fallback is a stand-in, not the researched model.
+
+---
+
+## 9. Limitations and tough questions
 
 | Likely question | Your answer |
 |---|---|
-| "Your real data is only 2 sessions." | Correct — pilot stage; the pipeline, schema and full experiment grid are validated on synthetic (45 sessions), and the real run proves end-to-end feasibility (silhouette 0.773). Recruiting participants for the full study is the next phase. |
-| "Isn't a self-reported label weak?" | Yes, it's noisy — but it's the ethical ground truth without invasive EEG. We mitigate with session-level averaging, balanced class weights and Macro-F1; states themselves are label-free. |
-| "The HMM didn't help — why keep it?" | Honest negative result; transition features already capture the dynamics at this data size. HMM may pay off with longer sequences/more data; we report both. |
-| "Isn't 60 s window overlapping = data leakage?" | No — grouping by participant in CV means correlated windows can't straddle train/test. |
-| "Why not deep learning (LSTM/Transformer)?" | Sample size (45 sessions) is far too small; tree/SVM models are the right capacity. Deep sequence models are future work once hundreds of sessions exist. |
-| "KMeans assumes spherical clusters." | True; GMM is implemented as the alternative with soft assignments. Cluster validity (silhouette/DB/CH) is reported rather than assumed. |
-| "How is this not just activity level predicting focus?" | That's exactly what the ablation tests: context/transition/state groups add Δ+0.216 over activity-only baseline, and the cross-context gap (0.377 vs 0.083) shows it isn't just raw activity. |
-| "XGBoost errors on the real run." | Known issue: `base_score must be in (0,1)` with only 2 sessions/tiny class counts; documented, and the demo uses the synthetic source for that cell. |
-| "What is the novelty?" | Combining **unsupervised interaction states + transition dynamics + explicit learning context** into one representation for concentration assessment, evaluated with participant-level and cross-context protocols most behaviour-modelling work skips. |
+| "Your data is simulated." | Correct. The snapshot validates the pipeline end to end; `DECISIONS.md` D001 says never report its numbers as findings. Real recruitment is the next phase. |
+| "22 participants is small." | Yes. It limits statistical power — that is why no LOPO difference reaches p < 0.05. We report effect sizes and CIs rather than a significance claim. |
+| "Isn't a self-report label weak?" | Yes, but it is the ethical ground truth here. Five-epoch windows, within-learner normalisation and macro-F1 mitigate it. |
+| "The HMM didn't help much — why keep it?" | It is the mechanism for the temporal claim, and the `no_states` ablation is the worst variant, which supports keeping it. The effect is not yet significant at this n. |
+| "Why not deep learning?" | 2,870 labelled rows from 22 participants. Tree/linear models are the right capacity; deep sequence models are future work. |
+| "KMeans/GMM would be simpler." | They are memoryless. The HMM adds state persistence and recovery, which is the proposal's contribution. |
+| "Isn't this just activity level predicting focus?" | The ablation tests that: removing states costs 0.030 macro-F1, and the non-screen gap is 0.380 → 0.499, not a raw-activity effect. |
+| "Why does the deployed model score differ?" | Different representation: ten live browser inputs, not the full HMM + transitions + context (D013). |
+| "Why is BIC monotonic? Is k=4 arbitrary?" | Monotonic BIC is expected with continuous Gaussian emissions at n = 6,600; the elbow rule is stated in D007 and the full curve is published, so the choice is auditable, not arbitrary. |
+| "What is the novelty?" | Combining label-free HMM interaction states, transition dynamics and explicit task/study-mode context in one representation, evaluated with participant-level and task-transfer protocols. |
+| "What would you do with more data?" | Re-select k on real BIC, re-test the states/transitions effect, add event-level features (bursts, clicks, app entropy), and try an ONNX-exported sequence model. |
 
-### 60-second closing statement
+### Known stale documents
 
-> "FocusTrack turns passive behavioural signals from an ESP32 node and browser into
-> 60-second windows, engineers five feature groups, discovers label-free interaction
-> states with KMeans and models their dynamics with an HMM. Against a conventional
-> aggregated-feature baseline, our context-aware representation improves Macro-F1 by
-> 0.22 (Cohen's dz 1.24, p = 0.014 on the strongest contrast) and is dramatically
-> more robust under cross-context shift — 0.377 versus 0.083 for SVM. Validation is
-> participant-grouped 5-fold CV with ablation and significance testing; the pilot
-> real dataset is small, and expanding it is the immediate next step."
+- `doc/DEMO_SUMMARY.md` still describes KMeans k=4, a 3-state Discrete HMM,
+  5-fold CV and the old `FocusTrack_Component1/` paths. Do not quote its numbers;
+  use `research/artifacts/results/`.
+- `doc/VIVA_PREP.md` (this file) is aligned with `research/` as of the last
+  rewrite. If you re-run `make experiments`, update §3.2–§3.4.
+
+---
+
+## 10. 60-second closing statement
+
+> "FocusTrack turns passive behavioural signals into 60-second epochs, discovers
+> label-free interaction states with a Gaussian HMM, and encodes transition
+> dynamics and task context. On the simulated snapshot the proposed
+> representation raises LOPO macro-F1 from 0.503 to 0.519 for SVM, and the
+> ablation attributes the gain to states (p = 0.059) and transitions (p = 0.098).
+> The differences are not yet statistically significant at 22 participants, so
+> the current claim is a valid, auditable protocol and a reproducible pipeline —
+> not a finding. The most promising signal is non-screen learning, where macro-F1
+> rises from 0.380 to 0.499; testing that on real participants is the next step."
