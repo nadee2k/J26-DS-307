@@ -17,7 +17,7 @@ import {
 import { useAuth } from "@/hooks/use-auth"
 import { useDemo } from "@/hooks/use-demo"
 import { getHistory } from "@/lib/demo/outcome"
-import { EVIDENCE } from "@/lib/demo/evidence"
+import { EVIDENCE, HEADLINE } from "@/lib/demo/evidence"
 import { TASK_LABELS } from "@/lib/focus/types"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/input"
@@ -224,6 +224,10 @@ export default function OutcomePage() {
             <FlaskConical className="h-3.5 w-3.5" /> Full evidence
           </Button>
         </div>
+        <p className="mt-2 text-[9px] leading-relaxed text-muted-foreground">
+          Evidence from the research study (real pilot n = {HEADLINE.realSessions}; simulated study n = {HEADLINE.simulatedSessions}).
+          The live session itself is a simulated learner, scored by the research models — the limitations are on the evidence page.
+        </p>
       </Panel>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-3">

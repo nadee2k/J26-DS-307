@@ -69,11 +69,16 @@ export function summarise(run: DemoRun, alerts: RaisedAlert[], feedback?: Feedba
         ? avg(focus) >= 60
           ? "A calm, consistent reading session. The quiet stretches that look like distraction were part of the work."
           : "A quiet reading session. The quiet stretches that look like distraction were part of the work, and the paper-work context kept the estimate from misreading them."
-        : "You kept a steady reading rhythm. The dip came later in the session, and the paper-work context kept the estimate from misreading quiet time as distraction."
+        : drops.length === 1
+          ? "You kept a steady reading rhythm. One dip came later in the session, and the paper-work context kept the estimate from misreading quiet time as distraction."
+          : `You kept a steady reading rhythm through ${drops.length} dips. The paper-work context kept quiet reading from being misread as distraction.`
   } else if (avg(focus) >= 68) {
-    hero = drops.length
-      ? "A strong session overall. The one dip followed the conditions shown below, and a short reset brought you back."
-      : "A strong, consistent session with no sustained drop in focus. Your rhythm held from start to finish."
+    hero =
+      drops.length === 0
+        ? "A strong, consistent session with no sustained drop in focus. Your rhythm held from start to finish."
+        : drops.length === 1
+          ? "A strong session overall. The one dip followed the conditions shown below, and a short reset brought you back."
+          : `A strong session overall. There were ${drops.length} dips; the signals below show what preceded them.`
   } else {
     hero = drops.length
       ? `You worked through a session with ${drops.length === 1 ? "one dip" : `${drops.length} dips`}. ${top ? `The strongest early signal was: ${top}.` : ""}`
