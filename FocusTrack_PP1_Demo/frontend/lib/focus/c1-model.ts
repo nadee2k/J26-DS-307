@@ -1,5 +1,7 @@
-// Component 1 – the concentration model built from keyboard, mouse and app-switching features only.
-// Trained rows come from the simulated study until real epochs and probes exist.
+// Component 1 – the live feature vector shared with the exported research model.
+// The app loads weights from public/models/c1.json; the vector order is defined by
+// research/contracts/c1_features.json. This module keeps the browser fallback.
+// The logger records when a key was pressed and whether it was Backspace/Delete – never which key or any text.
 
 import { accuracy, macroF1, mean, rocAuc } from "../sim/ml"
 import type { SimStudy } from "../sim/types"

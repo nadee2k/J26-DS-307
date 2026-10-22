@@ -115,4 +115,24 @@ explain a representation difference. SVM is the reference model for the
 ablation because it is the strongest linear kernel on this data; the full grid
 is still reported for baseline vs proposed.
 
+## D013 — The deployed model is a subset of the evaluated one
+
+The browser cannot decode a Gaussian HMM or serve an XGBoost model without a
+backend. The first deployment therefore uses the app's existing ten-input live
+contract (six epoch features, screen mode and three screen interactions), five-epoch
+smoothing and a logistic classifier trained by the research code. This is
+why the exported model's LOPO Macro-F1 (0.541) is not identical to the proposed
+HMM result (0.519 for SVM): they are different representations.
+
+The full HMM state/transition/context model remains the one reported in
+`artifacts/results/`. Moving it into the app requires either a Python scoring
+endpoint (the FastAPI backend is already present) or an ONNX export; either way
+the same feature contract and fixture test must be extended.
+
+The contract is verified in two languages: `research/tests/test_export.py` and
+`FocusTrack_PP1_Demo/frontend/scripts/verify-c1-model.mjs` both reproduce
+`contracts/c1_fixture.json`. The app imports the JSON statically and falls back
+to browser training only if the artifact is missing or malformed.
+
+
 

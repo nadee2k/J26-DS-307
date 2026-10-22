@@ -1,6 +1,6 @@
-// Models used by the live pipeline. Until real FocusTrack data exist they are trained on the simulated study
-// (lib/sim), which shares the live feature names and units. This is a prototype stand-in: the same code is
-// retrained on real epochs and probes after data collection.
+// Models used by the live pipeline. The C1 score is loaded from the research export
+// (public/models/c1.json) when the artifact is present; otherwise the browser fallback
+// trains on the simulated study. Other component models still train in the browser.
 
 import { generateStudy } from "@/lib/sim/generate"
 import { fitLogistic, kmeans, mean, predictLogistic, sd, standardizer, type Matrix } from "@/lib/sim/ml"

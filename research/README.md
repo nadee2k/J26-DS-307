@@ -30,6 +30,7 @@ model training. Those live here.
 | `src/focustrack/pipeline/` | per-fold fit/transform pipeline (next phase) | §3.8 |
 | `scripts/` | reproducible entry points | — |
 | `tests/` | unit tests for features, labels and splits | — |
+| `contracts/` | exported feature contract + golden fixture shared with the web app | §3.4 |
 | `artifacts/` | run manifests, fitted models, executed reports, curated results | — |
 
 ## Run it
@@ -39,6 +40,8 @@ cd research
 make setup                 # uv venv (Python 3.12) + editable install
 make data                  # builds data/processed/features.csv + labels
 make states                # HMM state discovery, transitions, context
+make experiments           # model grid, ablations, paired statistics
+make export                # deployable model + contract for the web app
 make test                  # pytest
 ```
 
@@ -195,13 +198,42 @@ A curated copy of the run is committed in `artifacts/results/` (summary,
 statistics, per-participant scores, manifest). The full run with predictions
 stays in the git-ignored `artifacts/runs/full/`.
 
+## Deployable model (Phase 5)
+
+The browser cannot decode the Gaussian HMM, so the app loads a **deployable
+subset** trained by this pipeline on the exact live feature contract:
+
+```bash
+make export
+```
+
+Outputs:
+
+```
+../FocusTrack_PP1_Demo/frontend/public/models/c1.json   model weights + metadata
+contracts/c1_features.json                              feature order, units, smoothing, threshold
+contracts/c1_fixture.json                               golden vector + expected probability
+artifacts/export/manifest.json                          data hash, metrics, git state
+```
+
+The subset uses the app's ten live inputs (six epoch features, screen mode and
+three screen interactions), five-epoch smoothing and learner-normalised probe
+labels. LOPO Macro-F1 for this deployable vector: **0.541** (22 participants).
+The full HMM representation remains the model reported in the experiments;
+moving it into the app needs a backend scoring endpoint or ONNX export.
+
+The app imports the JSON statically (`lib/focus/models.ts`) and falls back to
+browser training only if the artifact is missing or malformed. The Python test
+`tests/test_export.py` and `npm run verify:c1-model` check the same fixture, so
+the two implementations cannot silently drift.
+
 ## Status
 
 - [x] Phase 1 — package, configs, frozen simulated snapshot, source loaders
 - [x] Phase 2 — full feature builder, canonical schema, probe labels, LOPO/LOTO splits, tests
 - [x] Phase 3 — Gaussian HMM states (BIC + stability), transitions, context encoding
 - [x] Phase 4 — per-fold pipeline, SVM/RF/XGBoost, ablations, paired Wilcoxon
-- [ ] Phase 5 — export the fitted model + feature contract to the PP1 app
+- [x] Phase 5 — export the fitted model + feature contract to the PP1 app
 
 ## Rules
 
