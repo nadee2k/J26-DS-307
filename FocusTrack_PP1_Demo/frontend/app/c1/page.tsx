@@ -386,7 +386,7 @@ export default function C1Workbench() {
             <button type="button" onClick={() => setView("technical")} className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${view === "technical" ? "bg-[#2A6FDB] text-white" : "text-muted-foreground hover:bg-[#f6f3ee]"}`}>Technical view</button>
           </div>
         </div>
-        <Panel title={view === "simple" ? "Set up the demo" : "Session context and logger"} right={<span className="text-[11px] text-muted-foreground">{view === "simple" ? "Prototype · illustrative only" : models ? `Models trained on ${models.trainedOn}` : "Training models on the simulated study…"}</span>}>
+        <Panel title={view === "simple" ? "Set up the demo" : "Session context and logger"} right={<span className="text-[11px] text-muted-foreground">{view === "simple" ? "Prototype · illustrative only" : models ? `C1 model: ${models.c1Source === "export" ? "research export" : "browser fallback"} · ${models.c1TrainedOn}` : "Training models on the simulated study…"}</span>}>
           <div className="mb-3 grid gap-2 md:grid-cols-2">
             <button type="button" onClick={() => changeSource("desktop")} disabled={running}
               className={`flex items-start gap-3 rounded-xl border p-3 text-left transition-colors disabled:opacity-60 ${source === "desktop" ? "border-[#2A6FDB] bg-[#eef3fd]" : "border-[#e3ddd2] bg-white hover:bg-[#faf8f4]"}`}>
@@ -513,7 +513,7 @@ export default function C1Workbench() {
                     <div className="flex flex-wrap items-center gap-2 rounded-xl bg-[#eef3fd] px-3 py-2 text-sm">
                       <span className="font-semibold">State:</span> {last.f.stateLabel} · dwell {last.f.dwell} · changes (last 5) {last.f.changes}
                       <span className="text-muted-foreground">· app {last.app ?? "–"}</span>
-                      <span className="ml-auto font-semibold text-[#2A6FDB]">Behaviour-only P(focused) = {last.p.toFixed(2)}</span>
+                      <span className="ml-auto font-semibold text-[#2A6FDB]" title={models?.c1Source === "export" ? `Research export · ${models.c1TrainedOn}` : "Browser-trained fallback"}>{models?.c1Source === "export" ? "Research model · " : ""}Behaviour-only P(focused) = {last.p.toFixed(2)}</span>
                     </div>
                   </div>
                 )}
@@ -633,7 +633,7 @@ export default function C1Workbench() {
 
             <Panel title="Exactly what is stored for the latest epoch (transparency)">
               <pre className="max-h-64 overflow-auto rounded-xl bg-[#1e2433] p-3 text-[11px] text-[#d7e1f5]">{last ? JSON.stringify({ source, mode, task, epochSec, activeApp: last.app, ...last.f }, (k, v) => (typeof v === "number" ? Math.round(v * 1000) / 1000 : v), 2) : "–"}</pre>
-              <p className="mt-2 text-[11px] text-muted-foreground">No characters, passwords, clipboard, window titles or mouse coordinates. The model behind P(focused) is a prototype trained on the simulated study, so its output is illustrative until it is retrained on real probe-labelled data. In desktop mode an app switch is any foreground application change, so the behaviour-only score is indicative rather than calibrated.</p>
+              <p className="mt-2 text-[11px] text-muted-foreground">No characters, passwords, clipboard, window titles or mouse coordinates. The score comes from {models?.c1Source === "export" ? "the exported research model" : "a browser-trained fallback"}, trained on the simulated study; it is illustrative until it is retrained on real probe-labelled data. In desktop mode an app switch is any foreground application change, so the behaviour-only score is indicative rather than calibrated.</p>
               {saveState && (
                 <p className={`mt-1 text-[11px] ${saveState.ok ? "text-[#1E6B45]" : "text-red-700"}`}>
                   {saveState.ok ? `Saved to ${saveTargetLabel(saveState.target)}.` : `Epoch not saved: ${saveState.error}`}

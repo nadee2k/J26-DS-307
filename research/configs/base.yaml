@@ -1,0 +1,36 @@
+# Shared settings. Every other config extends this file.
+seed: 2026
+epoch_seconds: 60
+probe_window_epochs: 5        # a probe labels the five epochs before it (proposal 3.2)
+burst_gap_seconds: 2.0        # a pause longer than this ends a typing burst
+min_keys_for_rhythm: 10       # below this, rhythm and corrections are undefined
+focus_z_threshold: 0.0        # "focused" = learner-normalised rating > 0
+drop_z_threshold: -1.0        # "focus drop" = z <= -1
+label_normalisation: train_population   # train_population | within_learner
+app_categories:
+  code_editor: [code, code-insiders, vscode, pycharm, idea, webstorm, terminal, konsole, alacritty]
+  document: [word, libreoffice, pages, notion, obsidian, acrobat, evince, pdf, zathura, preview]
+  meeting: [zoom, teams, meet, webex]
+  messaging: [slack, discord, whatsapp, telegram, signal]
+
+# Interaction-state representation (proposal 3.4.4). Only features available for
+# every epoch are used; event-only columns are added after the logger change.
+state_features:
+  - typing_rate
+  - idle_ratio
+  - mouse_speed_px_s
+  - switch_rate
+
+# Context representation (proposal 3.4.6).
+context:
+  reference_task: reading
+  interactions: true
+
+# A non-interruption run of this many epochs counts as recovered.
+recovery_epochs: 3
+
+paths:
+  raw: data/raw/simulated_seed2026
+  interim: data/interim
+  processed: data/processed
+  artifacts: artifacts

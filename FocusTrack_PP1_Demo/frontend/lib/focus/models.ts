@@ -8,6 +8,7 @@ import type { Epoch, SimSession, SimStudy } from "@/lib/sim/types"
 import type { ComfortBand } from "./c2"
 import { c1BaselineRows, c1Rows, trainC1, trainC1Baseline } from "./c1-model"
 import { fit, scoreLin, standardized, type LinModel } from "./linear"
+import c1Export from "../../public/models/c1.json"
 
 export { c1Vec, c1BaselineVec, C1_NAMES, C1_BASELINE_NAMES } from "./c1-model"
 export { scoreLin, standardized, type LinModel } from "./linear"
@@ -61,8 +62,34 @@ export interface Models {
   states: { centroids: number[][]; mu: number[]; sg: number[]; labels: string[] }
   populationBand: ComfortBand
   trainedOn: string
+  /** Where the live C1 score comes from: the research export or the browser fallback. */
+  c1Source: "export" | "browser"
+  c1TrainedOn: string
 }
 export const availKey = (a: Avail) => `${a.c2 ? 1 : 0}${a.c3 ? 1 : 0}`
+
+function isLinModel(value: unknown): value is LinModel {
+  if (!value || typeof value !== "object") return false
+  const model = value as Partial<LinModel>
+  return (
+    Array.isArray(model.w) &&
+    Array.isArray(model.mu) &&
+    Array.isArray(model.sg) &&
+    Array.isArray(model.names) &&
+    model.w.length === model.names.length + 1 &&
+    model.mu.length === model.names.length &&
+    model.sg.length === model.names.length
+  )
+}
+
+/** Model exported by research/scripts/export_web_model.py (null if the artifact is absent or malformed). */
+const exportedC1: LinModel | null = isLinModel((c1Export as { model?: unknown }).model)
+  ? ((c1Export as { model: LinModel }).model)
+  : null
+const exportedC1TrainedOn =
+  exportedC1 && typeof (c1Export as { trainedOn?: unknown }).trainedOn === "string"
+    ? (c1Export as { trainedOn: string }).trainedOn
+    : "research export"
 
 let cache: Models | null = null
 
@@ -94,7 +121,7 @@ export function getModels(): Models {
       riskRows.map((r) => riskVec(r.win, r.t0, r.lastZ, r.s.mode === "screen", a)),
       riskRows.map((r) => r.y), RISK_NAMES)
   }
-  const c1 = trainC1(c1Rows(study, z))
+  const c1 = exportedC1 ?? trainC1(c1Rows(study, z))
   const c1Baseline = trainC1Baseline(c1BaselineRows(study, z))
 
   // interaction states: k-means (k = 4) on standardised raw interaction features; the final system uses a Gaussian HMM
@@ -125,6 +152,10 @@ export function getModels(): Models {
     states: { centroids, mu: st.mu, sg: st.sg, labels },
     populationBand: { noise: [q(bandRows.map((e) => e.noise), 0.1), q(bandRows.map((e) => e.noise), 0.9)], temp: [q(bandRows.map((e) => e.temp), 0.1), q(bandRows.map((e) => e.temp), 0.9)], personal: false, basis: good.length },
     trainedOn: `simulated study (seed 2026, ${study.participants.length} participants, ${labelled.length} labelled epochs)`,
+    c1Source: exportedC1 ? "export" : "browser",
+    c1TrainedOn: exportedC1
+      ? exportedC1TrainedOn
+      : `simulated study (seed 2026, ${study.participants.length} participants, ${labelled.length} labelled epochs)`,
   }
   return cache
 }

@@ -1,0 +1,59 @@
+{
+  "config": "c1_proposed",
+  "state_features": [
+    "typing_rate",
+    "idle_ratio",
+    "mouse_speed_px_s",
+    "switch_rate"
+  ],
+  "n_states": 4,
+  "selected_by": "elbow: adding the next state improves median BIC by less than 10% of the total gain",
+  "bic_medians": {
+    "2": 2427.088865015599,
+    "3": -10257.9739275997,
+    "4": -15369.868091742488,
+    "5": -16877.7190437921,
+    "6": -18874.65828816195
+  },
+  "marginal_gain_fraction": {
+    "3": 0.5954940081392849,
+    "4": 0.2399753469696149,
+    "5": 0.07078531827492328,
+    "6": 0.09374532661617704
+  },
+  "best_seed": 3,
+  "bic": -15369.868091788903,
+  "log_likelihood": 7891.6124317027925,
+  "converged": true,
+  "state_labels": [
+    "Idle / away",
+    "Sustained typing",
+    "Browsing / light activity",
+    "Frequent switching"
+  ],
+  "interruption_states": [
+    0,
+    3
+  ],
+  "interruption_rule": "screen: state in interruption states; non-screen: frequent switching or typing_rate >= min_keys_for_rhythm",
+  "stability": {
+    "runs": 5,
+    "mean_ari": 0.9346605566335355,
+    "min_ari": 0.836651391583839,
+    "pairwise_ari": [
+      0.836651391583839,
+      1.0,
+      1.0,
+      1.0,
+      0.836651391583839,
+      0.836651391583839,
+      0.836651391583839,
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "epochs": 6600,
+  "sessions": 132,
+  "note": "Exploratory state discovery on all participants. Evaluation refits the scaler and HMM inside each training fold (proposal 3.8)."
+}

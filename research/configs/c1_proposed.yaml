@@ -1,0 +1,17 @@
+# RQ1/RQ2 proposed representation: aggregated + transitions + task context.
+# Gaussian HMM states replace the PP1 k-means prototype (proposal SO3).
+extends: base.yaml
+name: c1_proposed
+representation:
+  aggregated: true
+  temporal: true
+  states: true
+  transitions: true
+  context: true
+states:
+  method: hmm            # gmm is the simpler alternative
+  covariance_type: diag
+  n_states_range: [2, 3, 4, 5, 6]
+  selection: bic
+  seed_stability_runs: 5
+models: [majority, logreg, svm, random_forest, xgboost]

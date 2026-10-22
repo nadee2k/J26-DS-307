@@ -1,0 +1,21 @@
+{
+  "createdAt": "2026-10-22T13:47:49.748050+00:00",
+  "model": "c1-web-1.0.0",
+  "output": "/home/Dhananjana/Studies/Research/J26-DS-307/FocusTrack_PP1_Demo/frontend/public/models/c1.json",
+  "contract": "/home/Dhananjana/Studies/Research/J26-DS-307/research/contracts/c1_features.json",
+  "fixture": "/home/Dhananjana/Studies/Research/J26-DS-307/research/contracts/c1_fixture.json",
+  "trainedOn": "simulated study (seed 2026, 22 participants, 2870 probe-labelled rows)",
+  "evaluation": {
+    "lopo_macro_f1": 0.5411526977321501,
+    "participants": 22,
+    "min_macro_f1": 0.3877551020408163,
+    "max_macro_f1": 0.698667044809983
+  },
+  "dataSha256": "2433d2e418d632fa5db1fb8f05c8666ff8f916a1fdf1991f646fcbe3be2ec35a",
+  "contractSha256": "0d053886efa117ccec832dafa18f24f7cb641c3cbd5ed4c7f1c5b976a6da3962",
+  "fixtureSha256": "ac195661bd2923515c5f53ca8db22a312ce04178247bd661bede484c9bc9e2fc",
+  "git": {
+    "commit": "2876b8b990d751d69ae2ee72627d4ad4970d4e29",
+    "dirty": true
+  }
+}

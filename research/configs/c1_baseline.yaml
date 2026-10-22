@@ -1,0 +1,10 @@
+# RQ1 baseline: conventional aggregated interaction counts only.
+extends: base.yaml
+name: c1_baseline
+representation:
+  aggregated: true
+  temporal: false
+  states: false
+  transitions: false
+  context: false
+models: [majority, logreg, svm, random_forest, xgboost]

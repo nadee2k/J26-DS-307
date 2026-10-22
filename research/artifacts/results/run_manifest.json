@@ -1,0 +1,169 @@
+{
+  "component": "C1",
+  "config": "c1_proposed",
+  "config_raw": {
+    "seed": 2026,
+    "epoch_seconds": 60,
+    "probe_window_epochs": 5,
+    "burst_gap_seconds": 2.0,
+    "min_keys_for_rhythm": 10,
+    "focus_z_threshold": 0.0,
+    "drop_z_threshold": -1.0,
+    "label_normalisation": "train_population",
+    "app_categories": {
+      "code_editor": [
+        "code",
+        "code-insiders",
+        "vscode",
+        "pycharm",
+        "idea",
+        "webstorm",
+        "terminal",
+        "konsole",
+        "alacritty"
+      ],
+      "document": [
+        "word",
+        "libreoffice",
+        "pages",
+        "notion",
+        "obsidian",
+        "acrobat",
+        "evince",
+        "pdf",
+        "zathura",
+        "preview"
+      ],
+      "meeting": [
+        "zoom",
+        "teams",
+        "meet",
+        "webex"
+      ],
+      "messaging": [
+        "slack",
+        "discord",
+        "whatsapp",
+        "telegram",
+        "signal"
+      ]
+    },
+    "state_features": [
+      "typing_rate",
+      "idle_ratio",
+      "mouse_speed_px_s",
+      "switch_rate"
+    ],
+    "context": {
+      "reference_task": "reading",
+      "interactions": true
+    },
+    "recovery_epochs": 3,
+    "paths": {
+      "raw": "data/raw/simulated_seed2026",
+      "interim": "data/interim",
+      "processed": "data/processed",
+      "artifacts": "artifacts"
+    },
+    "name": "c1_proposed",
+    "representation": {
+      "aggregated": true,
+      "temporal": true,
+      "states": true,
+      "transitions": true,
+      "context": true
+    },
+    "states": {
+      "method": "hmm",
+      "covariance_type": "diag",
+      "n_states_range": [
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "selection": "bic",
+      "seed_stability_runs": 5
+    },
+    "models": [
+      "majority",
+      "logreg",
+      "svm",
+      "random_forest",
+      "xgboost"
+    ]
+  },
+  "started_at": "2026-10-22T13:06:40.561177+00:00",
+  "finished_at": "2026-10-22T13:13:02.286318+00:00",
+  "runtime_seconds": 381.7,
+  "git_commit": "2876b8b990d751d69ae2ee72627d4ad4970d4e29",
+  "git_dirty": true,
+  "python": "3.12.15",
+  "packages": {
+    "pandas": "3.0.6",
+    "numpy": "2.5.4",
+    "scikit-learn": "1.9.1",
+    "scipy": "1.18.1",
+    "xgboost": "3.4.1",
+    "hmmlearn": "0.3.3"
+  },
+  "data": {
+    "features": "/home/Dhananjana/Studies/Research/J26-DS-307/research/data/processed/features.csv",
+    "features_sha256": "f7c8a9e41f66359d0c46ac1432fd24769e14287486e818801c05cd662ecead86",
+    "probes": "/home/Dhananjana/Studies/Research/J26-DS-307/research/data/raw/simulated_seed2026/probes.csv",
+    "probes_sha256": "0d8606a21b99c3838c778e2d0f0e5add20de7f923420fda045a2a23190a3479a",
+    "epochs": 6600,
+    "sessions": 132,
+    "participants": 22
+  },
+  "n_states": 4,
+  "models": [
+    "svm",
+    "logreg",
+    "random_forest",
+    "xgboost",
+    "majority"
+  ],
+  "variants": {
+    "baseline": {
+      "aggregated": true,
+      "temporal": false,
+      "states": false,
+      "transitions": false,
+      "context": false
+    },
+    "proposed": {
+      "aggregated": true,
+      "temporal": true,
+      "states": true,
+      "transitions": true,
+      "context": true
+    },
+    "no_context": {
+      "aggregated": true,
+      "temporal": true,
+      "states": true,
+      "transitions": true,
+      "context": false
+    },
+    "no_states": {
+      "aggregated": true,
+      "temporal": true,
+      "states": false,
+      "transitions": false,
+      "context": true
+    },
+    "no_transitions": {
+      "aggregated": true,
+      "temporal": true,
+      "states": true,
+      "transitions": false,
+      "context": true
+    }
+  },
+  "split": "both",
+  "max_folds": null,
+  "ablation_model": "svm",
+  "note": "HMM, scaler, state labels and imputation medians are refitted inside each training fold; state count is fixed from the Phase 3 selection."
+}

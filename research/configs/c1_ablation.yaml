@@ -1,0 +1,9 @@
+# Ablation ladder: start from the proposed representation and remove one group.
+extends: c1_proposed.yaml
+name: c1_ablation
+ablations:
+  full: {}
+  no_context: {context: false}
+  no_states: {states: false, transitions: false}
+  no_transitions: {transitions: false}
+  baseline: {temporal: false, states: false, transitions: false, context: false}

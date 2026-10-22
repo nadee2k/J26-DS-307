@@ -1,0 +1,63 @@
+{
+  "version": "c1-web-1.0.0",
+  "model": "FocusTrack_PP1_Demo/frontend/public/models/c1.json",
+  "featureNames": [
+    "typing rate",
+    "idle time",
+    "app switching",
+    "mouse activity",
+    "typing rhythm variability",
+    "corrections",
+    "screen session",
+    "typing (screen)",
+    "idle (screen)",
+    "switching (screen)"
+  ],
+  "featureSpec": [
+    {
+      "name": "typingRate",
+      "unit": "keys/min",
+      "source": "typing_rate"
+    },
+    {
+      "name": "idleRatio",
+      "unit": "0-1",
+      "source": "idle_ratio"
+    },
+    {
+      "name": "switchRate",
+      "unit": "switches/min",
+      "source": "switch_rate"
+    },
+    {
+      "name": "mouseSpeed/100",
+      "unit": "100 px/s",
+      "source": "mouse_speed_px_s/100"
+    },
+    {
+      "name": "interKeyVar",
+      "unit": "coefficient of variation",
+      "source": "inter_key_cv"
+    },
+    {
+      "name": "backspaceRatio",
+      "unit": "0-1",
+      "source": "backspace_ratio"
+    }
+  ],
+  "smoothingWindow": 5,
+  "vector": [
+    "typingRate",
+    "idleRatio",
+    "switchRate",
+    "mouseSpeed/100",
+    "interKeyVar",
+    "backspaceRatio",
+    "screen",
+    "screen*typingRate",
+    "screen*idleRatio",
+    "screen*switchRate"
+  ],
+  "threshold": 0.5,
+  "trainedFrom": "research/data/raw/simulated_seed2026/epochs.csv"
+}
