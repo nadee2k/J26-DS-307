@@ -6,10 +6,10 @@ import { generateStudy } from "@/lib/sim/generate"
 import { fitLogistic, kmeans, mean, predictLogistic, sd, standardizer, type Matrix } from "@/lib/sim/ml"
 import type { Epoch, SimSession, SimStudy } from "@/lib/sim/types"
 import type { ComfortBand } from "./c2"
-import { c1Rows, trainC1 } from "./c1-model"
+import { c1BaselineRows, c1Rows, trainC1, trainC1Baseline } from "./c1-model"
 import { fit, scoreLin, standardized, type LinModel } from "./linear"
 
-export { c1Vec, C1_NAMES } from "./c1-model"
+export { c1Vec, c1BaselineVec, C1_NAMES, C1_BASELINE_NAMES } from "./c1-model"
 export { scoreLin, standardized, type LinModel } from "./linear"
 
 export type Avail = { c2: boolean; c3: boolean }
@@ -47,9 +47,16 @@ function zFn(study: SimStudy) {
   return (pid: string, rating: number) => { const st = stats.get(pid) ?? { m: 0, s: 1 }; return (rating - st.m) / st.s }
 }
 
+/** Learner-normalised probe ratings, shared by training, evaluation and the model check. */
+export function participantZ(study: SimStudy) {
+  return zFn(study)
+}
+
 export interface Models {
   focus: Record<string, LinModel> // key "c2c3" availability, e.g. "11", "10", "01", "00"
   c1: LinModel
+  /** Simple activity-count baseline, trained on the same rows and smoothing as `c1`. */
+  c1Baseline: LinModel
   risk: Record<string, LinModel>
   states: { centroids: number[][]; mu: number[]; sg: number[]; labels: string[] }
   populationBand: ComfortBand
@@ -88,6 +95,7 @@ export function getModels(): Models {
       riskRows.map((r) => r.y), RISK_NAMES)
   }
   const c1 = trainC1(c1Rows(study, z))
+  const c1Baseline = trainC1Baseline(c1BaselineRows(study, z))
 
   // interaction states: k-means (k = 4) on standardised raw interaction features; the final system uses a Gaussian HMM
   const raw = study.sessions.flatMap((s) => s.epochs.filter((_, i) => i % 3 === 0).map((e) => [e.typingRate, e.idleRatio, e.mouseSpeed, e.switchRate]))
@@ -113,7 +121,7 @@ export function getModels(): Models {
   const good = labelled.filter((r) => r.y === 1).map((r) => r.e)
   const bandRows = good.length ? good : labelled.map((r) => r.e) // fall back to all epochs if no focused ones
   cache = {
-    focus, c1, risk,
+    focus, c1, c1Baseline, risk,
     states: { centroids, mu: st.mu, sg: st.sg, labels },
     populationBand: { noise: [q(bandRows.map((e) => e.noise), 0.1), q(bandRows.map((e) => e.noise), 0.9)], temp: [q(bandRows.map((e) => e.temp), 0.1), q(bandRows.map((e) => e.temp), 0.9)], personal: false, basis: good.length },
     trainedOn: `simulated study (seed 2026, ${study.participants.length} participants, ${labelled.length} labelled epochs)`,

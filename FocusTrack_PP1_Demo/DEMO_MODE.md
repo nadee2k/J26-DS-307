@@ -14,7 +14,7 @@ standalone workbench; integration (C1–C3 epochs feeding C4 live) is part of th
 | Page | Owner | What it demonstrates |
 |---|---|---|
 | `/sessions` | shared | Data collection: study mode **per session**, tasks filtered by mode, ESP32 + behaviour + optional vision logging, random focus probes (1–5, every 8–12 min; "Fast demo" = 20–40 s), end-of-session rating, active time without pauses |
-| `/c1` | Kumari (C1) | Privacy-preserving interaction logger (key timing + Backspace flag only), per-epoch features, interaction states (k-means prototype), transitions, behaviour-only focus estimate with mode/task context, exact view of what is stored. An optional desktop agent (`hardware/python_bridge/desktop_agent.py`) extends the same logger to **every application**, not just this tab |
+| `/c1` | Kumari (C1) | Privacy-preserving interaction logger (key timing + Backspace flag only), per-epoch features, interaction states (k-means prototype), transitions, behaviour-only focus estimate with mode/task context, exact view of what is stored. A learner-facing **Simple view** turns the output into plain-language outcomes; the **Technical view** includes a model check (score reproduction, contributions, baseline/C4 comparison, simulated-study holdout). An optional desktop agent (`hardware/python_bridge/desktop_agent.py`) extends the same logger to **every application**, not just this tab |
 | `/c2` | Kapuwella (C2) | ESP32 stream (or demo board), two-point sensor calibration (lux, dB(A)), missing-data handling, Hampel filter, per-epoch features, comfort band and index (personal from earlier probe-labelled sessions, population otherwise) |
 | `/c3` | Vithana (C3) | In-browser vision at 3 fps: 3D head pose, eye-relative iris position, quality flags, personal three-zone calibration with a held-out scripted check (personal vs fixed rule, phone recall, reading motion), Downward-Gaze Disambiguation vs the fixed-angle rule |
 | `/c4` | Ayyash (C4) | Replay of a simulated session from a learner the models never saw: focus score, 5–10-minute drop forecast, personal threshold with "Helpful / Not now" feedback, alert budget and gap, explanations + counterfactuals, phase-1/phase-2 switch, stream-drop fallback |
@@ -26,7 +26,8 @@ standalone workbench; integration (C1–C3 epochs feeding C4 live) is part of th
 cd Student_DataCollection_UI/frontend
 npm ci
 npm run dev          # http://localhost:3000
-npm run test:logic   # 26 unit tests for the component logic (head pose, iris, zones, DGD, Hampel, comfort, C1 rates, agent events)
+npm run test:logic   # 33 unit tests for the component logic (head pose, iris, zones, DGD, Hampel, comfort, C1 rates, agent events, friendly outcomes)
+npm run test:check   # 7 tests for C1 score reproduction and contributions
 ```
 
 Demo mode is on when `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` are not set (or

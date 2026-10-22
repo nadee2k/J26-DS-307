@@ -7,9 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "npm run test:logic && npm run test:ml",
-    "test:logic": "tsc lib/focus/vision-math.ts lib/focus/zone-model.ts lib/focus/c3.ts lib/focus/c2.ts lib/focus/c1.ts lib/focus/desktop.ts lib/focus/types.ts lib/focus/buffers.ts --outDir .test-build --module commonjs --target es2020 --skipLibCheck --strict && node tests/focus-logic.test.js .test-build",
-    "test:ml": "tsc lib/sim/ml.ts --outDir .test-build --module commonjs --target es2020 --skipLibCheck --strict && node tests/ml.test.js .test-build"
+    "test": "npm run test:logic && npm run test:check && npm run test:ml",
+    "test:logic": "tsc lib/focus/vision-math.ts lib/focus/zone-model.ts lib/focus/c3.ts lib/focus/c2.ts lib/focus/c1.ts lib/focus/c1-friendly.ts lib/focus/desktop.ts lib/focus/types.ts lib/focus/buffers.ts --outDir .test-build --module commonjs --target es2020 --skipLibCheck --strict && node tests/focus-logic.test.js .test-build",
+    "test:check": "tsc lib/focus/c1-check.ts --outDir .test-build-check --rootDir lib --module commonjs --target es2020 --skipLibCheck --strict && node tests/c1-check.test.js .test-build-check",
+    "test:ml": "tsc lib/sim/ml.ts --outDir .test-build --module commonjs --target es2020 --skipLibCheck --strict && node tests/ml.test.js .test-build",
+    "verify:c1": "node scripts/verify-c1-export.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

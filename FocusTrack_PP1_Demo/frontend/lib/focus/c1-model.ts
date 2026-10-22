@@ -16,6 +16,13 @@ export interface C1Input {
 
 export const C1_NAMES = ["typing rate", "idle time", "app switching", "mouse activity", "typing rhythm variability", "corrections", "screen session", "typing (screen)", "idle (screen)", "switching (screen)"]
 
+/** The simple activity-count baseline: no states, transitions or context interactions. */
+export const C1_BASELINE_NAMES = ["typing rate", "idle time", "mouse speed", "app switching"]
+
+export function c1BaselineVec(f: C1Input) {
+  return [f.typingRate, f.idleRatio, f.mouseSpeed, f.switchRate]
+}
+
 export function c1Vec(f: C1Input, screen: boolean) {
   const s = screen ? 1 : 0
   return [f.typingRate, f.idleRatio, f.switchRate, f.mouseSpeed / 100, f.interKeyVar, f.backspaceRatio, s, s * f.typingRate, s * f.idleRatio, s * f.switchRate]
@@ -34,21 +41,34 @@ export function c1Smooth(history: C1Input[]): C1Input {
 }
 
 /** The 5 epochs before each probe; label 1 when the learner's rating is above their own average. */
-export function c1Rows(study: SimStudy, z: (pid: string, rating: number) => number): C1Row[] {
+function c1RowsWith(study: SimStudy, z: (pid: string, rating: number) => number, vec: (f: C1Input, screen: boolean) => number[]): C1Row[] {
   const rows: C1Row[] = []
   for (const s of study.sessions) {
     for (const pr of s.probes) {
       const y = z(s.pid, pr.rating) > 0 ? 1 : 0
       for (let t = Math.max(0, pr.t - 5); t < pr.t; t++) {
-        rows.push({ pid: s.pid, x: c1Vec(c1Smooth(s.epochs.slice(0, t + 1)), s.mode === "screen"), y })
+        rows.push({ pid: s.pid, x: vec(c1Smooth(s.epochs.slice(0, t + 1)), s.mode === "screen"), y })
       }
     }
   }
   return rows
 }
 
+export function c1Rows(study: SimStudy, z: (pid: string, rating: number) => number): C1Row[] {
+  return c1RowsWith(study, z, c1Vec)
+}
+
+/** The same rows and smoothing, but with the simple activity-count vector used as the baseline. */
+export function c1BaselineRows(study: SimStudy, z: (pid: string, rating: number) => number): C1Row[] {
+  return c1RowsWith(study, z, (f) => c1BaselineVec(f))
+}
+
 export function trainC1(rows: C1Row[], opts: { iters?: number; l2?: number } = {}): LinModel {
   return fit(rows.map((r) => r.x), rows.map((r) => r.y), C1_NAMES, opts)
+}
+
+export function trainC1Baseline(rows: C1Row[], opts: { iters?: number; l2?: number } = {}): LinModel {
+  return fit(rows.map((r) => r.x), rows.map((r) => r.y), C1_BASELINE_NAMES, opts)
 }
 
 /** Participant-grouped k-fold: no participant appears in both the training and the test fold. */

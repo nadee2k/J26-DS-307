@@ -20,30 +20,34 @@ export interface WorkbenchInfo {
 
 const COLORS: Record<number, string> = { 1: "#2A6FDB", 2: "#1E8E5A", 3: "#D9711C", 4: "#7D3CB0" }
 
-export function WorkbenchShell({ info, children }: { info: WorkbenchInfo; children: ReactNode }) {
+export function WorkbenchShell({ info, children, compact = false, title, tagline }: { info: WorkbenchInfo; children: ReactNode; compact?: boolean; title?: string; tagline?: string }) {
   const col = COLORS[info.n]
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em]" style={{ color: col }}>Component {info.n} workbench</p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight">{info.title}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{info.owner} · {info.id} · {info.question}</p>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight">{title ?? info.title}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{tagline ?? `${info.owner} · ${info.id} · ${info.question}`}</p>
         </div>
-        <Link href={`/research?tab=${encodeURIComponent(info.analysisTab)}`} className="flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold" style={{ borderColor: col, color: col }}>
-          <FlaskConical className="h-4 w-4" /> Analysis on the simulated study
-        </Link>
+        {!compact && (
+          <Link href={`/research?tab=${encodeURIComponent(info.analysisTab)}`} className="flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold" style={{ borderColor: col, color: col }}>
+            <FlaskConical className="h-4 w-4" /> Analysis on the simulated study
+          </Link>
+        )}
       </div>
-      <div className="grid gap-3 md:grid-cols-2">
-        <div className="rounded-2xl border bg-white p-4" style={{ borderColor: `${col}55` }}>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: col }}>Built for PP1 (≈ 50%)</p>
-          <ul className="grid gap-1.5 text-sm">{info.done.map((d) => <li key={d} className="flex gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" style={{ color: col }} />{d}</li>)}</ul>
+      {!compact && (
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="rounded-2xl border bg-white p-4" style={{ borderColor: `${col}55` }}>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: col }}>Built for PP1 (≈ 50%)</p>
+            <ul className="grid gap-1.5 text-sm">{info.done.map((d) => <li key={d} className="flex gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" style={{ color: col }} />{d}</li>)}</ul>
+          </div>
+          <div className="rounded-2xl border border-dashed bg-white/60 p-4">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Next (remaining ≈ 50%)</p>
+            <ul className="grid gap-1.5 text-sm text-muted-foreground">{info.next.map((d) => <li key={d} className="flex gap-2"><Circle className="mt-0.5 h-4 w-4 shrink-0" />{d}</li>)}</ul>
+          </div>
         </div>
-        <div className="rounded-2xl border border-dashed bg-white/60 p-4">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Next (remaining ≈ 50%)</p>
-          <ul className="grid gap-1.5 text-sm text-muted-foreground">{info.next.map((d) => <li key={d} className="flex gap-2"><Circle className="mt-0.5 h-4 w-4 shrink-0" />{d}</li>)}</ul>
-        </div>
-      </div>
+      )}
       {children}
     </div>
   )

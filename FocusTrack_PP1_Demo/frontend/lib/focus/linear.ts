@@ -3,8 +3,10 @@
 import { fitLogistic, predictLogistic, standardizer, type Matrix } from "../sim/ml"
 
 export interface LinModel { w: number[]; mu: number[]; sg: number[]; names: string[] }
-export const scoreLin = (m: LinModel, x: number[]) => predictLogistic(m.w, [x.map((v, j) => (v - m.mu[j]) / m.sg[j])])[0]
-export const standardized = (m: LinModel, x: number[]) => x.map((v, j) => (v - m.mu[j]) / m.sg[j])
+const safeScale = (value: number | undefined, fallback = 1) => (typeof value === "number" && Number.isFinite(value) && value !== 0 ? value : fallback)
+const safeValue = (value: number | undefined, fallback = 0) => (typeof value === "number" && Number.isFinite(value) ? value : fallback)
+export const scoreLin = (m: LinModel, x: number[]) => predictLogistic(m.w, [standardized(m, x)])[0]
+export const standardized = (m: LinModel, x: number[]) => x.map((v, j) => (safeValue(v) - safeValue(m.mu?.[j])) / safeScale(m.sg?.[j]))
 
 export function fit(X: Matrix, y: number[], names: string[], opts: { iters?: number; l2?: number } = {}): LinModel {
   if (X.length !== y.length) throw new Error(`fit: ${X.length} rows but ${y.length} labels`)

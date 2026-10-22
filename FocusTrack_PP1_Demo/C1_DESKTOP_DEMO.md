@@ -50,6 +50,12 @@ per-epoch numeric feature rows leave the machine (see §5).
 
 ## 3. Suggested 2-minute demo
 
+The workbench opens in **Simple view**: plain-language outcomes ("You look focused",
+"Lots of switching", "A quiet reading stretch"), what was noticed and one helpful
+suggestion. All numbers, probabilities, features and the stored JSON are behind the
+**Technical view** toggle in the top-right, so the same page serves both the non-technical
+audience and the assessment.
+
 1. Start the agent and open `/c1`; show the green **connected** badge and the input
    backend (`libinput` on Linux, `pynput` on Windows/macOS).
 2. Keep epoch length at **15 s (fast demo)**, choose study mode and task, press
@@ -104,7 +110,44 @@ Enable the backend destination by adding to `frontend/.env.local`:
 NEXT_PUBLIC_C1_BACKEND_URL=http://localhost:8000
 ```
 
-## 6. Agent HTTP API (all local)
+## 6. Check the output with the trained model
+
+Two complementary checks are available. They prove **reproducibility** and show **simulated
+accuracy**; neither is a real-world validation result.
+
+### In `/c1` → Technical view
+
+The **Check the output with the trained model** panel offers:
+
+* **Check stored scores** — recomputes every stored `P(focused)` from the exact C1 weights,
+  the same 5-epoch smoothing and the same feature vector. It reports a pass or the
+  mismatching epochs.
+* **Run held-out check** — participant-grouped 5-fold evaluation of the exact live C1
+  model on the simulated study: accuracy, macro-F1, ROC-AUC and the majority-class
+  baseline, with per-fold details. This is simulator evidence, not real accuracy.
+* **Same epoch, three models** — the simple activity-count baseline, the C1 model and the
+  C4 fusion model (with only the C1 stream) side by side for the latest epoch.
+* **What moved the latest score** — the largest positive and negative feature
+  contributions, with plain-language labels. Contributions are on the logit scale.
+
+### Standalone script for an exported file
+
+**Download my data** now includes a `modelCheck` snapshot (C1 weights, activity baseline,
+C4 C1-only weights, training description). Verify an export with:
+
+```bash
+cd FocusTrack_PP1_Demo/frontend
+npm run verify:c1 -- ~/Downloads/focustrack_c1_epochs.json
+# machine-readable:
+npm run verify:c1 -- ~/Downloads/focustrack_c1_epochs.json --json
+```
+
+The script exits `0` when every stored score is reproduced within `1e-9`, and `1` when a
+score does not match. It also prints the latest baseline/C1/C4 comparison and the top
+contributions. Exports created before this feature do not contain the model snapshot and
+must be downloaded again.
+
+## 7. Agent HTTP API (all local)
 
 | Method | Path | Purpose |
 |---|---|---|
@@ -116,7 +159,7 @@ NEXT_PUBLIC_C1_BACKEND_URL=http://localhost:8000
 The cursor is a sequence number (not a timestamp), so events that share a millisecond
 cannot be skipped. `GET /events` also returns `activeApp`, `recording`, `now` and `more`.
 
-## 7. Troubleshooting
+## 8. Troubleshooting
 
 | Symptom | Fix |
 |---|---|
@@ -126,14 +169,18 @@ cannot be skipped. `GET /events` also returns `activeApp`, `recording`, `now` an
 | App switches show **unavailable** | KDE Wayland: `pip install dbus-next` (KWin bridge) or install `kdotool`. |
 | Port already in use | Another agent is running; stop it or use `--port 8766` and set `NEXT_PUBLIC_C1_AGENT_URL`. |
 
-## 8. Files
+## 9. Files
 
 | File | Role |
 |---|---|
 | `hardware/python_bridge/desktop_agent.py` | system-wide logger + localhost API |
 | `hardware/python_bridge/test_desktop_agent.py` | 13 unit tests (privacy + event buffer) |
 | `frontend/lib/focus/desktop.ts` | typed agent client + event validation |
+| `frontend/lib/focus/c1-friendly.ts` | plain-language outcome, notices and suggestions |
 | `frontend/lib/focus/c1-store.ts` | epoch persistence (backend → app DB fallback) |
+| `frontend/lib/focus/c1-check.ts` | score reproduction + contribution helpers |
+| `frontend/lib/focus/c1-verify.ts` | baseline/C4 comparison and simulated-study holdout |
+| `frontend/scripts/verify-c1-export.mjs` | standalone exported-file verifier |
 | `frontend/app/c1/page.tsx` | source switch, live agent polling, storage status |
 | `backend/app/routes/c1_epochs.py` | `POST/GET /api/c1/epochs` |
 | `supabase/migration_2026-10-22_c1_epochs.sql` | `c1_epochs` table for Supabase |

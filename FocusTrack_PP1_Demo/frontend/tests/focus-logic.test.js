@@ -8,6 +8,7 @@ const { readingLike, dgdFrame, aggregateC3, readingMotionScore } = L("c3.js")
 const { hampel, aggregateC2, toDb, toLux, DEFAULT_CALIBRATION, comfortBand } = L("c2.js")
 const { computeC1 } = L("c1.js")
 const { sanitizeAgentEvent } = L("desktop.js")
+const { friendlyOutcome, friendlyGlance } = L("c1-friendly.js")
 let pass = 0
 const ok = (name, fn) => { try { fn(); pass++; console.log("  ok  ", name) } catch (e) { console.log("  FAIL", name, "-", e.message); process.exitCode = 1 } }
 
@@ -141,5 +142,53 @@ ok("unknown event kinds and timestamps are rejected", () => {
   assert.equal(sanitizeAgentEvent({ t: 1, kind: "paste" }), null)
   assert.equal(sanitizeAgentEvent({ t: 0, kind: "key" }), null)
   assert.equal(sanitizeAgentEvent(null), null)
+})
+
+console.log("C1 friendly outcomes")
+const c1Base = {
+  typingRate: 0, interKeyVar: 0.55, backspaceRatio: 0.12, idleRatio: 0.9, mouseSpeed: 0,
+  switchRate: 0, scrollRate: 0, keyboardActive: false, state: 3, stateLabel: "Idle / away from the computer",
+  dwell: 1, changes: 0, awayShare: 0,
+}
+const outcome = (patch, extra = {}) => friendlyOutcome({
+  features: { ...c1Base, ...patch }, probability: 0.5, recentProbabilities: [], mode: "screen", activeApp: null, running: true, ...extra,
+})
+ok("no activity gives a friendly ready state", () => {
+  const o = friendlyOutcome({ features: null, probability: null, recentProbabilities: [], mode: "screen", activeApp: null, running: false })
+  assert.equal(o.title, "Ready when you are")
+  assert.equal(o.tone, "neutral")
+})
+ok("steady typing is described as focused", () => {
+  const o = outcome({ typingRate: 40, idleRatio: 0.1, keyboardActive: true }, { probability: 0.8 })
+  assert.equal(o.title, "You look focused")
+  assert.equal(o.tone, "good")
+  assert(o.notices.some((n) => /typing is steady/i.test(n)))
+})
+ok("app switching is called out without a number", () => {
+  const o = outcome({ switchRate: 4, typingRate: 10, keyboardActive: true, idleRatio: 0.2 }, { activeApp: "VS Code" })
+  assert.equal(o.title, "Lots of switching")
+  assert(o.suggestion.includes("one window"))
+  assert(o.notices.some((n) => /changing apps often/i.test(n)))
+  assert(!/\d/.test(o.title + o.summary + o.suggestion + o.notices.join(" ")), "no numbers in the friendly text")
+})
+ok("quiet paper work is not treated as distraction", () => {
+  const o = outcome({ idleRatio: 0.95, typingRate: 0, keyboardActive: false }, { mode: "non-screen", probability: 0.2 })
+  assert.equal(o.title, "A quiet reading stretch")
+  assert(o.notices.some((n) => /normal for reading/i.test(n)))
+})
+ok("corrections produce a helpful suggestion", () => {
+  const o = outcome({ typingRate: 30, keyboardActive: true, backspaceRatio: 0.35, idleRatio: 0.2 })
+  assert(o.notices.some((n) => /correcting quite a few/i.test(n)))
+  assert(o.suggestion.includes("accuracy first"))
+})
+ok("trend compares recent with earlier updates", () => {
+  const o = outcome({ typingRate: 30, keyboardActive: true, idleRatio: 0.2 }, { probability: 0.7, recentProbabilities: [0.2, 0.25, 0.7, 0.75] })
+  assert.equal(o.trend, "improving")
+  assert(o.trendText.includes("improving"))
+})
+ok("glance values are words, not scores", () => {
+  const items = friendlyGlance({ ...c1Base, typingRate: 30, keyboardActive: true, idleRatio: 0.2, mouseSpeed: 80, switchRate: 0.5 }, "VS Code")
+  assert.equal(items.length, 6)
+  assert(items.every((i) => !/\d/.test(i.value)), JSON.stringify(items))
 })
 console.log(`\n${pass} passed`)

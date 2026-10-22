@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+
+# derived data and run outputs are reproducible, not committed
+data/interim/*
+data/processed/*
+artifacts/runs/*
+artifacts/models/*
+artifacts/reports/*
+
+# the frozen simulated snapshot is the only committed raw data
+data/raw/*
+!data/raw/simulated_seed2026/
+!data/raw/simulated_seed2026/*.csv
